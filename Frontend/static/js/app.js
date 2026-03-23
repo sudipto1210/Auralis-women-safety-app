@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     initializeCamera();
-    initializeMap(); 
+checkAuthThenInitMap(); 
     initializeChart();
     initializeEventListeners();
     initializeChatbot();
@@ -131,9 +131,26 @@ async function initializeDualCameras() {
 }
 
 // Map initialization
+function checkAuthThenInitMap() {
+    // Check login status first
+    fetch('/api/threat_status', {credentials: 'same-origin'})
+    .then(r => {
+        if (r.status === 401) {
+            console.log('Not logged in - hide map');
+            document.getElementById('map-status').textContent = 'Please login to access safety features';
+            document.getElementById('map').style.display = 'none';
+            return;
+        }
+        r.json().then(() => initializeMap());
+    })
+    .catch(() => initializeMap()); // fallback
+}
+
 function initializeMap() {
     // Check if map container exists
     if (!document.getElementById('map')) return;
+    document.getElementById('map').style.display = 'block';
+
 
     const statusEl = document.getElementById('map-status');
 
@@ -244,12 +261,17 @@ function loadSafePlaces() {
     
     console.log('Safe places fetch:', `/api/safe_places?lat=${userLocation.lat}&lng=${userLocation.lng}`);
     apiFetch(`/api/safe_places?lat=${userLocation.lat}&lng=${userLocation.lng}`)
-        .then(response => {
+        .then(async response => {
+            if (response.status === 401) {
+                document.getElementById('map-status').textContent = 'Please login to see safe places';
+                return;
+            }
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
             return response.json();
         })
+
         .then(data => {
             const places = data.places || [];
             
