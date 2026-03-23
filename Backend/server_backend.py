@@ -14,13 +14,20 @@ from flask import (
 )
 from dotenv import load_dotenv
 
-# Import Google OAuth module
-from Backend.google_oauth import (
-    load_google_oauth_config,
-    verify_google_id_token,
-    create_or_update_user_google,
-    register_oauth_routes
-)
+# Import Google OAuth module (cloud-safe)
+try:
+    from Backend.google_oauth import (
+        load_google_oauth_config,
+        verify_google_id_token,
+        create_or_update_user_google,
+        register_oauth_routes
+    )
+except ImportError as e:
+    print(f"[WARN] Google OAuth import failed (cloud mode?): {e}")
+    load_google_oauth_config = lambda: {}
+    verify_google_id_token = lambda t: None
+    create_or_update_user_google = lambda u, *args: ('demo', True)
+    register_oauth_routes = lambda a: None
 
 # Import Supabase database module
 from Database.database import (

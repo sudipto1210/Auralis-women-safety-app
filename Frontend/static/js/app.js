@@ -13,25 +13,15 @@ let isMonitoring = false;
 let frontStream = null;
 let backStream = null;
 
-// Get CSRF token for API requests
-function getCsrfToken() {
-    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-}
-
-// Enhanced fetch function with CSRF token
-function secureFetch(url, options = {}) {
-    const csrfToken = getCsrfToken();
-    
-    // Set default headers
-    const headers = {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken,
-        ...options.headers
-    };
-    
+// Session-based API fetch (no CSRF)
+function apiFetch(url, options = {}) {
     return fetch(url, {
         ...options,
-        headers: headers
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
     });
 }
 
@@ -63,15 +53,15 @@ document.addEventListener('DOMContentLoaded', function() {
 function sendUserLocation() {
     if (!navigator.geolocation) return;
 
-    navigator.geolocation.getCurrentPosition(
+navigator.geolocation.getCurrentPosition(
         (pos) => {
-            secureFetch("/api/update_location", {
+            apiFetch("/api/update_location", {
                 method: "POST",
                 body: JSON.stringify({
                     lat: pos.coords.latitude,
                     lng: pos.coords.longitude
                 })
-            });
+            }).catch(e => console.log('Location update failed:', e));
         },
         (err) => {
             console.warn("Location access denied for background update", err);
@@ -252,12 +242,11 @@ function initializeGoogleMap(lat, lng) {
 function loadSafePlaces() {
     if (!userLocation) return;
     
-    fetch(`/api/safe_places?lat=${userLocation.lat}&lng=${userLocation.lng}`)
+    console.log('Safe places fetch:', `/api/safe_places?lat=${userLocation.lat}&lng=${userLocation.lng}`);
+    apiFetch(`/api/safe_places?lat=${userLocation.lat}&lng=${userLocation.lng}`)
         .then(response => {
-            // LOGIN CHECK
-            if (response.status === 401) {
-                window.location.href = '/user-login'; // Redirect if session expired or not logged in
-                throw new Error("Unauthorized");
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
             }
             return response.json();
         })

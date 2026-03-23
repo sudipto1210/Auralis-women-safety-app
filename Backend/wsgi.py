@@ -136,12 +136,17 @@ def create_app():
     @app.after_request
     def after_request(response):
         response.headers["X-Request-ID"] = g.get("request_id", "N/A")
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
         
         if hasattr(g, "start_time"):
             duration = (datetime.now(timezone.utc) - g.start_time).total_seconds()
-            logger.info(
+        logger.info(
                 f"request_completed method={request.method} path={request.path} "
-                f"status={response.status_code} duration_ms={round(duration * 1000, 2)}"
+                f"status={response.status_code} duration_ms={round(duration * 1000, 2)} "
+                f"user={request.cookies.get('session', 'none')[:20]}..."
             )
         
         return response
@@ -176,7 +181,9 @@ def create_app():
         logger.error(f"internal_error request_id={g.get('request_id')} error={error}")
         return {"error": "Internal server error", "request_id": g.get("request_id")}, 500
     
+    print(f"[WSGI DEBUG] Total routes: {len(app.url_map.rules)}")
     logger.info("flask_app_created production=true")
+    logger.info(f"Routes loaded: {len(app.url_map.rules)}")
     
     return app
 
