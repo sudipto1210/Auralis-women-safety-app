@@ -151,13 +151,17 @@ def create_app():
         
         return response
     
-    # Copy routes from backend app
+    # Copy routes from backend app (skip static to avoid conflict)
+    skipped = 0
     for rule in backend_app.url_map.iter_rules():
         endpoint = rule.endpoint
-        # Get the view function from the view_functions dictionary
+        if endpoint == 'static':  # Skip static to avoid overwrite
+            skipped += 1
+            continue
         if endpoint in backend_app.view_functions:
             view_func = backend_app.view_functions[endpoint]
             app.add_url_rule(rule.rule, endpoint, view_func, methods=rule.methods)
+    print(f"[WSGI] Copied {len(backend_app.url_map.rules) - skipped - 1} routes, skipped static={skipped}")
     
     # Error handlers
     @app.errorhandler(400)
