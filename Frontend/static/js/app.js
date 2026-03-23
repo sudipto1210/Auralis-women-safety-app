@@ -502,7 +502,7 @@ function initializeEventListeners() {
 }
 
 function startMonitoring() {
-    secureFetch('/api/start_monitoring', {
+    apiFetch('/api/start_monitoring', {
         method: 'POST'
     })
     .then(response => {
@@ -510,37 +510,56 @@ function startMonitoring() {
             window.location.href = '/user-login';
             return;
         }
+        if (!response.ok) {
+            throw new Error('Server error: ' + response.status);
+        }
         return response.json();
     })
     .then(data => {
-        if (data) {
-            isMonitoring = true;
-            document.getElementById('start-monitoring').style.display = 'none';
-            document.getElementById('stop-monitoring').style.display = 'inline-block';
-            
-            monitoringInterval = setInterval(updateThreatStatus, 1000);
-            updateThreatStatus();
-            updateRecommendations();
-            addLog('success', 'Threat monitoring started');
-        }
+        isMonitoring = true;
+        document.getElementById('start-monitoring').style.display = 'none';
+        document.getElementById('stop-monitoring').style.display = 'inline-block';
+        
+        monitoringInterval = setInterval(updateThreatStatus, 1000);
+        updateThreatStatus();
+        updateRecommendations();
+        addLog('success', 'Threat monitoring started');
     })
     .catch(error => {
-        console.error('Error:', error);
-        addLog('error', 'Failed to start monitoring');
+        console.error('Start monitoring error:', error);
+        addLog('error', 'Login required or server error');
+        if (error.message.includes('401') || error.message.includes('login')) {
+            window.location.href = '/user-login';
+        }
     });
 }
 
+
 function stopMonitoring() {
-    secureFetch('/api/stop_monitoring', { method: 'POST' })
-    .then(response => response.json())
+    apiFetch('/api/stop_monitoring', { method: 'POST' })
+    .then(async response => {
+        if (response.status === 401) {
+            window.location.href = '/user-login';
+            return;
+        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    })
     .then(data => {
         isMonitoring = false;
         document.getElementById('start-monitoring').style.display = 'inline-block';
         document.getElementById('stop-monitoring').style.display = 'none';
         if (monitoringInterval) clearInterval(monitoringInterval);
         addLog('info', 'Threat monitoring stopped');
+    })
+    .catch(error => {
+        console.error('Stop monitoring error:', error);
+        if (error.message.includes('401')) {
+            window.location.href = '/user-login';
+        }
     });
 }
+
 
 function updateThreatStatus() {
     fetch('/api/threat_status')
@@ -623,22 +642,28 @@ function updateRecommendations() {
 function triggerSOS() {
     if (!confirm('Are you sure you want to trigger SOS? This will alert your emergency contacts.')) return;
     
-    secureFetch('/api/trigger_sos', { method: 'POST' })
-    .then(response => {
+    apiFetch('/api/trigger_sos', { method: 'POST' })
+    .then(async response => {
         if (response.status === 401) {
             window.location.href = '/user-login';
             return;
         }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();
     })
     .then(data => {
-        if (data) {
-            addLog('critical', `SOS TRIGGERED: ${data.message}`);
-            alert('SOS Activated! Your emergency contacts have been notified.');
-            updateThreatStatus();
+        addLog('critical', `SOS TRIGGERED: ${data.message}`);
+        alert('SOS Activated! Your emergency contacts have been notified.');
+        updateThreatStatus();
+    })
+    .catch(error => {
+        console.error('SOS error:', error);
+        if (error.message.includes('401')) {
+            window.location.href = '/user-login';
         }
     });
 }
+
 
 function addLog(severity, message) {
     const container = document.getElementById('logs-container');
