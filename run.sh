@@ -21,4 +21,6 @@ if [ ! -d "venv" ]; then
 fi
 
 # Run the application using venv Python directly
-$VENV_PYTHON -m Backend.server_backend
+export PYTHONPATH="$(pwd)"
+$VENV_PYTHON Backend/server_backend.py
+
