@@ -153,15 +153,21 @@ def create_app():
     
     # Copy routes from backend app (skip static to avoid conflict)
     skipped = 0
+    static_skipped = []
     for rule in backend_app.url_map.iter_rules():
         endpoint = rule.endpoint
-        if endpoint == 'static':  # Skip static to avoid overwrite
+        if endpoint == 'static':
+            static_skipped.append(rule.rule)
             skipped += 1
             continue
         if endpoint in backend_app.view_functions:
-            view_func = backend_app.view_functions[endpoint]
-            app.add_url_rule(rule.rule, endpoint, view_func, methods=rule.methods)
-    print(f"[WSGI] Copied {len(backend_app.url_map.rules) - skipped - 1} routes, skipped static={skipped}")
+            try:
+                app.add_url_rule(rule.rule, endpoint, backend_app.view_functions[endpoint], methods=rule.methods)
+            except AssertionError as e:
+                print(f"[WSGI SKIPPED] {endpoint} {rule.rule}: {e}")
+                skipped += 1
+                continue
+    print(f"[WSGI] Copied routes OK. Skipped static={static_skipped} other_conflicts={skipped-len(static_skipped)} Total backend rules={len(backend_app.url_map.rules)}")
     
     # Error handlers
     @app.errorhandler(400)
