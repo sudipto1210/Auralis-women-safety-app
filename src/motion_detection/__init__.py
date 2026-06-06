@@ -1,5 +1,0 @@
-# Motion detection module
-
-
-
-

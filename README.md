@@ -1,255 +1,135 @@
-# Women Safety Assistant
+# AURALIS — Women Safety & Threat Monitoring Command Center
 
-A comprehensive, real-time women safety application with threat monitoring, emergency SOS, AI-powered safety guidance, and trusted contact management. Built with modern web technologies for reliability and ease of use.
+AURALIS is a comprehensive, real-time safety monitoring system that fuses speech distress, physical motion anomalies, and environmental context. It coordinates an **on-device/server-fusion pipeline** to estimate situational threat levels from SAFE to CRITICAL.
 
-## 🌟 Features
-
-### Core Safety Features
-- **Real-time Threat Monitoring** - Continuous assessment combining motion and audio analysis
-- **One-Click SOS Emergency** - Instant alert system with location sharing to all emergency contacts
-- **AI Safety Chatbot** - Intelligent assistant providing safety recommendations and emergency guidance
-- **Trusted Contact Management** - Securely store and manage up to 10 emergency contacts
-
-### Technical Features
-- **Dual-Camera Support** - Server-rendered stream for desktop, dual camera for mobile
-- **Interactive Safe Places Map** - Find nearby police stations, hospitals, and safe zones
-- **Real-time Analytics** - Live threat visualization with historical charts
-- **Comprehensive Logging** - Color-coded event logging with severity levels
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Python 3.8 or higher
-- Webcam for video features
-- Modern browser with geolocation support
-
-### Installation
-
-```bash
-# Navigate to project directory
-cd WOMEN-SAFETY-APP
-
-# Create virtual environment (recommended)
-python3 -m venv venv
-source venv/bin/activate  # Linux/Mac
-# or: venv\Scripts\activate  # Windows
-
-# Install dependencies (uses virtual environment to avoid externally-managed-environment error)
-pip install -r requirements.txt
-
-# Start the server
-python server_backend.py
-
-# Open in browser
-# http://127.0.0.1:5000
-```
-
-> **Note:** If you encounter the `externally-managed-environment` error, this is because Python 3.12+ enforces PEP 668 which prevents pip from installing packages system-wide. Always activate the virtual environment (`source venv/bin/activate`) before running pip commands, or use the provided build scripts:
-> ```bash
-> # For local development
-> ./run.sh
->
-> # For Render deployment, use the build and start commands in Procfile
-> ```
-
-### Default Access
-- **Admin Dashboard**: `admin` / `admin`
-- **User Registration**: Available on first visit
-
-## 📱 User Guide
-
-### Setting Up Your Account
-
-1. **First Launch**
-   - You'll be redirected to the registration page
-   - Create your account with a username and secure password
-
-2. **Emergency Contacts Setup** (Required)
-   - Add **minimum 4 trusted contacts**
-   - Include name, India mobile number (+91), and relationship
-   - Optional: email address for additional notification
-
-3. **Dashboard Overview**
-   - View real-time threat level indicator
-   - Access SOS emergency button
-   - Interact with safety chatbot
-   - Explore nearby safe places on the map
-
-### Using Safety Features
-
-#### Threat Monitoring
-- Click "Start Monitoring" to begin
-- View live threat score (0-100)
-- Monitor speech and motion detection levels
-- Threat levels: SAFE → LOW → MEDIUM → HIGH → CRITICAL
-
-#### Emergency SOS
-- Red SOS button for instant emergencies
-- Triggers CRITICAL threat level
-- Notifies all emergency contacts with your location
-- Logs event with timestamp
-
-#### Safe Places Map
-- Automatically detects your location
-- Shows nearby safe places within 5km
-- Color-coded markers:
-  - 🏥 Hospitals (green)
-  - 🚔 Police stations (blue)
-  - 🛡️ Safe zones (purple)
-
-#### AI Safety Chatbot
-- Click the floating chatbot widget
-- Ask for safety recommendations
-- Get nearest emergency service directions
-- Learn emergency procedures
-
-### Admin Dashboard
-- View all registered users
-- Monitor system activity
-- Manage user accounts
-
-## 🔐 Security & Privacy
-
-### Data Protection
-- Passwords are securely hashed using Werkzeug
-- Emergency contacts are encrypted at rest
-- Session-based authentication with secure cookies
-
-### Privacy Commitment
-- Your location is never stored permanently
-- Emergency contacts are only notified during SOS events
-- All data stays on your local server
-- No third-party data sharing
-
-### Security Recommendations (Production)
-- Change the Flask secret key in `server_backend.py`
-- Use HTTPS in production
-- Implement rate limiting for API endpoints
-- Use environment variables for sensitive config
-
-## 🛠️ Technical Architecture
-
-### Backend Stack
-- **Flask** - Web framework
-- **OpenCV** - Camera and video processing
-- **Werkzeug** - Security and password hashing
-
-### Frontend Stack
-- **HTML5/CSS3** - Modern responsive design
-- **Vanilla JavaScript** - Interactive features
-- **Chart.js** - Real-time threat visualization
-- **Leaflet** - Interactive maps
-- **Font Awesome** - Icons
-
-### Project Structure
-```
-WOMEN-SAFETY-APP/
-├── server_backend.py         # Main Flask application
-├── requirements.txt          # Python dependencies
-├── README.md                 # This file
-├── templates/                # HTML templates
-│   ├── index.html           # Main dashboard
-│   ├── login.html           # User login
-│   ├── onboarding.html      # Contact setup
-│   └── admin.html           # Admin dashboard
-├── static/                   # Static assets
-│   ├── css/                 # Stylesheets
-│   └── js/                  # JavaScript modules
-├── src/                      # Core modules
-│   ├── threat_assessment/   # Threat analysis
-│   ├── map_integration/     # Safe places
-│   ├── motion_detection/    # Motion analysis
-│   └── speech_analysis/     # Audio processing
-├── config/                   # Configuration
-└── data/                     # Data storage
-```
-
-## 📡 API Reference
-
-### Public Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/` | Main dashboard |
-| GET | `/video_feed` | MJPEG video stream |
-| GET | `/api/threat_status` | Current threat status |
-| GET | `/api/safe_places` | Nearby safe places |
-
-### Authenticated Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/start_monitoring` | Start threat monitoring |
-| POST | `/api/stop_monitoring` | Stop monitoring |
-| POST | `/api/trigger_sos` | Trigger emergency SOS |
-
-### Authentication Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET/POST | `/login` | User login |
-| GET/POST | `/register` | User registration |
-| GET | `/logout` | End session |
-
-## 🔧 Configuration
-
-### Emergency Services
-Edit `config/emergency_config.json`:
-```json
-{
-    "emergency_numbers": ["100", "112", "1091"],
-    "sms_template": "EMERGENCY! I need help. Location: {location}",
-    "call_delay": 30
-}
-```
-
-### Safe Places
-Edit `config/safe_places_config.json`:
-```json
-{
-    "search_radius_km": 5,
-    "place_types": ["hospital", "police", "fire_station"]
-}
-```
-
-## 🔮 Future Enhancements
-
-- [ ] ML-powered emotion detection
-- [ ] Push notifications for mobile
-- [ ] Integration with real maps API (Google/Apple)
-- [ ] Database migration (SQLite/PostgreSQL)
-- [ ] Two-factor authentication
-- [ ] Voice-triggered SOS commands
-- [ ] Wearable device integration
-
-## 🐛 Troubleshooting
-
-### Camera Issues
-- Check webcam is connected and not in use
-- Ensure browser has camera permissions
-- App shows placeholder if camera unavailable
-
-### Location Not Detected
-- Enable browser location access
-- Check device GPS/location services
-- Uses default location if unavailable
-
-### Map Not Loading
-- Verify internet connection
-- Check OpenStreetMap accessibility
-- CDN required for Leaflet maps
-
-## 📄 License
-
-This project is created for educational purposes as a Final Year Project.
-
-## 🤝 Support
-
-For questions or issues:
-- Review the documentation
-- Check troubleshooting section
-- Contact the development team
+The system is structured as two key components:
+1. **Hardened Android Mobile Client (`mobile/`)**: A native React Native CLI Android application that collects IMU sensor telemetry (accelerometer + gyroscope) and audio amplitude/pitch metrics in the background. It is hardened against tampering, reverse engineering, and data leaks.
+2. **Dynamic Fusion API Server (`backend/`)**: A Flask + Supabase backend server that runs gait/motion anomaly detection against user-calibrated walking baselines, filters audio through a four-layer voice activity and distress pipeline, evaluates context risks, and triggers automated SOS notifications.
 
 ---
 
-**Built with ❤️ for Women's Safety**
+## Project Architecture
 
-*Your safety is our priority.*
+```
+AURALIS/
+├── backend/                          # REST API and threat processing engine
+│   ├── api/                          # Flask endpoints and authentication routes
+│   │   ├── server_backend.py         # Main Flask API coordinator
+│   │   ├── google_oauth.py           # OAuth identity verification
+│   │   └── wsgi.py                   # Production server entry point
+│   ├── database/                     # Supabase database operations manager
+│   │   └── database.py
+│   ├── src/                          # Signal processing & analysis modules
+│   │   ├── motion_detection/         # gait profiling and anomaly detection
+│   │   ├── speech_analysis/          # VAD & environment-adaptive audio engine
+│   │   ├── threat_assessment/        # stateful threat fusion & override logic
+│   │   └── context_engine/           # dynamic context weight adaptation
+│   ├── templates/                    # Server-rendered templates
+│   │   └── admin.html                # Admin supervision dashboard
+│   ├── static/                       # Admin console styling and scripts
+│   └── run.sh                        # Backend environment startup utility
+│
+├── mobile/                           # Hardened React Native CLI Android App
+│   ├── android/                      # Native Kotlin and Gradle settings
+│   ├── src/                          # Secure UI screens, navigation, and state
+│   ├── package.json                  # React Native dependencies
+│   └── App.tsx                       # Root component with security check gates
+│
+├── run.sh                            # Root convenience launcher (delegates to backend)
+├── README.md                         # Main command center documentation
+├── Research_paper_Final.pdf          # Research paper (final PDF)
+└── Research_paper_Final.txt          # Research paper (source text)
+```
+
+---
+
+## Core Features
+
+### 1. Hardened React Native Android App (`mobile/`)
+* **Background Sensor Monitoring**: Collects accelerometer and gyroscope data at 50Hz and mic amplitude levels without battery-draining visual streams.
+* **Onboarding & Calibration**: Guides users through a 30-second walking baseline calibration to adjust thresholds to their individual movement signatures.
+* **Anti-Tampering & Integrity Module**: Runs a native Kotlin root trust validator before loading, checking for `su` binaries, root apps, emulators, active debuggers, and packaging signature pinning.
+* **Screenshot Prevention**: Enforces `FLAG_SECURE` window layout flags to block screen recorders, overlay malware, and local screenshot attempts.
+* **Hardware-Backed Cryptography**: Stores JWT session tokens, host API endpoints, and user credentials inside the encrypted Android Keystore via the Keychain API instead of plaintext storage.
+* **Logcat Sanitization**: Strips console log buffers during production compilation to prevent leakage of coordinates, motion signatures, or tokens over USB debugging.
+
+### 2. Multi-Layer Audio Distress Pipeline
+* **Layer 1: Noise Classification**: Categorizes ambient noise (Quiet, Street, Crowd, Transport) to adjust the detection threshold.
+* **Layer 2: Voice Activity Gate**: Autocorrelates pitch coordinates, filtering out ambient machine hums or wind noise, only analyzing sounds inside the human vocal frequency (85Hz-255Hz).
+* **Layer 3: Distress Classifier**: Extracts ZCR, pitch variance, spectral contrast, and 13-coefficient MFCC vectors to estimate distress probabilities via SVM or YAMNet.
+* **Layer 4: Adaptive Threshold**: Dynamically increases alerting requirements in noisy transits while maintaining high sensitivity in quiet environments.
+
+### 3. Stateful Sensor Fusion & Override Logic
+* **Dynamic Weight Context**: Adjusts sensor contribution based on situational risk (e.g. night hours, isolated locations, low crowd presence).
+* **Critical Event Overrides**: Instantly bypasses temporal exponential moving average (EMA) smoothing when high-risk events coordinate (e.g. `FALL` + vocal distress immediately triggers `CRITICAL`).
+* **Emergency Workflows**: Automatically alerts emergency contacts with live GPS coordinates, suggesting nearest safe locations (police stations, hospitals) within 5km on a customized map.
+
+---
+
+## Getting Started
+
+### 1. Prerequisites
+- **Node.js**: Version 20 or higher.
+- **Java Development Kit (JDK)**: JDK 17 or higher (with `JAVA_HOME` set).
+- **Android SDK**: With `ANDROID_HOME` environment variable configured.
+- **Python**: Version 3.11 or higher.
+
+---
+
+### 2. Run the REST API Backend
+```bash
+# Clone the repository
+git clone https://github.com/vulnerable4u/Auralis-women-safety-web-app.git AURALIS
+cd AURALIS
+
+# Launch the startup script (creates venv and installs dependencies automatically)
+chmod +x run.sh
+./run.sh
+```
+The server will start on port `5001`. Access the admin supervision dashboard by logging in at `/login`.
+
+---
+
+### 3. Build & Run the Android Client
+```bash
+# Navigate to the mobile folder
+cd mobile
+
+# Install JavaScript dependencies
+npm install
+
+# Connect a physical device (enable Developer Options → USB Debugging) or start an emulator
+# Set up SDK path (e.g., echo "sdk.dir=$ANDROID_HOME" > android/local.properties)
+# Then compile and launch the application:
+npx react-native run-android
+```
+* **On physical devices**, tap the settings gear on the login page and point the server host to your computer's LAN IP (e.g., `http://192.168.x.x:5001`). Emulators can connect directly to the loopback interface default (`http://10.0.2.2:5001`).
+
+Alternatively, open the `mobile/android/` project folder directly in **Android Studio** to sync Gradle and build, run, or profile the application.
+
+---
+
+## API Reference
+
+### Telemetry Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/motion_data` | Post 5-second buffer of accelerometer/gyroscope readings. |
+| POST | `/api/audio_data` | Post real-time client-side extracted audio feature vector. |
+| POST | `/api/motion_baseline` | Save walking baseline readings for user profiling. |
+| GET | `/api/onboarding/status` | Retrieve contact and motion calibration progress for the user. |
+
+### Core Safety Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/threat_status` | Fetch current threat level, contributions, and explanations. |
+| POST | `/api/start_monitoring` | Start server threat evaluation thread. |
+| POST | `/api/stop_monitoring` | Stop server threat evaluation thread. |
+| POST | `/api/trigger_sos` | Manually activate critical SOS status and notify contacts. |
+| GET | `/api/safe_places` | Get nearby safe zones prioritizing police and hospitals. |
+
+---
+
+## 📄 License
+This project is created for educational and safety research purposes.
 

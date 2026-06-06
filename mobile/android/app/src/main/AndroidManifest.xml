@@ -1,0 +1,80 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!-- ── Location ── -->
+  <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+  <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+
+  <!-- ── Sensors ── -->
+  <uses-permission android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS"/>
+
+  <!-- ── Network ── -->
+  <uses-permission android:name="android.permission.INTERNET"/>
+
+  <!-- ── Audio ── -->
+  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+  <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
+  <!-- ── Haptics ── -->
+  <uses-permission android:name="android.permission.VIBRATE"/>
+
+  <!--
+    REMOVED: android.permission.SYSTEM_ALERT_WINDOW      — not used, dangerous
+    REMOVED: android.permission.READ_EXTERNAL_STORAGE    — not needed
+    REMOVED: android.permission.WRITE_EXTERNAL_STORAGE   — not needed (Android 10+)
+  -->
+
+  <queries>
+    <intent>
+      <action android:name="android.intent.action.VIEW"/>
+      <category android:name="android.intent.category.BROWSABLE"/>
+      <data android:scheme="https"/>
+    </intent>
+  </queries>
+
+  <application
+    android:name=".MainApplication"
+    android:label="@string/app_name"
+    android:icon="@mipmap/ic_launcher"
+    android:roundIcon="@mipmap/ic_launcher_round"
+    android:allowBackup="false"
+    android:theme="@style/AppTheme"
+    android:supportsRtl="true"
+    android:networkSecurityConfig="@xml/network_security_config">
+    <!--
+      REMOVED: android:usesCleartextTraffic="true"
+      Cleartext is now controlled by network_security_config.xml.
+      Release: HTTPS only. Debug: HTTP to 10.0.2.2/LAN allowed.
+    -->
+
+    <activity
+      android:name=".MainActivity"
+      android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode"
+      android:launchMode="singleTask"
+      android:windowSoftInputMode="adjustResize"
+      android:theme="@style/Theme.App.SplashScreen"
+      android:exported="true"
+      android:screenOrientation="portrait">
+
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+
+      <!-- App deep link — HTTPS only, no legacy Expo schemes -->
+      <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="auralis"/>
+        <!--
+          REMOVED: com.auralis.app scheme  — same as package, redundant
+          REMOVED: exp+auralis scheme       — Expo leftover, confused deputy risk
+        -->
+      </intent-filter>
+
+    </activity>
+  </application>
+</manifest>

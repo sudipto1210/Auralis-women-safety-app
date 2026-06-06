@@ -1,0 +1,18 @@
+{
+  "admin": {
+    "count": 0,
+    "speech_mean": 0.0,
+    "speech_m2": 0.0,
+    "motion_mean": 0.0,
+    "motion_m2": 0.0,
+    "updated_at": null
+  },
+  "banerjeesudipto2580@gmail.com": {
+    "count": 45,
+    "speech_mean": 0.15622222222222218,
+    "speech_m2": 0.003232777777777775,
+    "motion_mean": 0.19783253346672378,
+    "motion_m2": 2.4841298861953574,
+    "updated_at": "2026-05-19T10:46:32.990188"
+  }
+}

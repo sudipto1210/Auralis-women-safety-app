@@ -1,0 +1,154 @@
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
+
+def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
+
+/**
+ * This is the configuration block to customize your React Native Android app.
+ * By default you don't need to apply any configuration, just uncomment the lines you need.
+ */
+react {
+    root = file("../../")
+    entryFile = file("../../index.ts")
+    autolinkLibrariesWithApp()
+}
+
+/**
+ * R8 / ProGuard — enabled for release builds.
+ * This shrinks, obfuscates, and optimizes the bytecode so the APK
+ * cannot be trivially reverse-engineered.
+ */
+def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInReleaseBuilds') ?: true).toBoolean()
+
+/**
+ * The preferred build flavor of JavaScriptCore (JSC)
+ *
+ * For example, to use the international variant, you can use:
+ * `def jscFlavor = 'org.webkit:android-jsc-intl:+'`
+ *
+ * The international variant includes ICU i18n library and necessary data
+ * allowing to use e.g. `Date.toLocaleString` and `String.localeCompare` that
+ * give correct results when using with locales other than en-US. Note that
+ * this variant is about 6MiB larger per architecture than default.
+ */
+def jscFlavor = 'org.webkit:android-jsc:+'
+
+// ── Production keystore configuration ─────────────────────────────────────
+// Reads signing credentials from android/keystore.properties (gitignored).
+// If the file doesn't exist (CI without secrets, debug workstation), the
+// release build falls back to the debug keystore so the build doesn't break.
+//
+// To set up production signing:
+//   1. Copy android/keystore.properties.example → android/keystore.properties
+//   2. Fill in your credentials
+//   3. Place your .keystore file in android/app/
+// ──────────────────────────────────────────────────────────────────────────
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+def hasProductionKeystore = keystorePropertiesFile.exists()
+if (hasProductionKeystore) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    ndkVersion rootProject.ext.ndkVersion
+
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    compileSdk rootProject.ext.compileSdkVersion
+
+    namespace 'com.auralis.app'
+    defaultConfig {
+        applicationId 'com.auralis.app'
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0.0"
+    }
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+        if (hasProductionKeystore) {
+            release {
+                // Load from android/keystore.properties (never committed to git)
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            // ── Signing ──────────────────────────────────────────────────────────
+            // Uses production keystore when keystore.properties exists.
+            // Falls back to debug keystore when building without prod secrets.
+            signingConfig hasProductionKeystore ? signingConfigs.release : signingConfigs.debug
+
+            // ── Code shrinking & obfuscation ─────────────────────────────────────
+            // proguard-android-optimize.txt uses aggressive optimization passes
+            // (e.g. class merging, method inlining) on top of standard ProGuard.
+            minifyEnabled enableProguardInReleaseBuilds
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+
+            // ── Resource shrinking ───────────────────────────────────────────────
+            // Removes unused drawables, layouts, and strings from the APK.
+            shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: true)
+
+            crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
+        }
+    }
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging false
+        }
+    }
+    androidResources {
+        ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+    }
+}
+
+// Apply static values from `gradle.properties` to the `android.packagingOptions`
+// Accepts values in comma delimited lists, example:
+// android.packagingOptions.pickFirsts=/LICENSE,**/picasa.ini
+["pickFirsts", "excludes", "merges", "doNotStrip"].each { prop ->
+    // Split option: 'foo,bar' -> ['foo', 'bar']
+    def options = (findProperty("android.packagingOptions.$prop") ?: "").split(",");
+    // Trim all elements in place.
+    for (i in 0..<options.size()) options[i] = options[i].trim();
+    // `[] - ""` is essentially `[""].filter(Boolean)` removing all empty strings.
+    options -= ""
+
+    if (options.length > 0) {
+        println "android.packagingOptions.$prop += $options ($options.length)"
+        // Ex: android.packagingOptions.pickFirsts += '**/SCCS/**'
+        options.each {
+            android.packagingOptions[prop] += it
+        }
+    }
+}
+
+dependencies {
+    // The version of react-native is set by the React Native Gradle Plugin
+    implementation("com.facebook.react:react-android")
+
+    // For animated gif support
+    implementation("com.facebook.fresco:animated-gif:${reactAndroidLibs.versions.fresco.get()}")
+    // For webp support
+    implementation("com.facebook.fresco:webpsupport:${reactAndroidLibs.versions.fresco.get()}")
+    // Animated webp support
+    implementation("com.facebook.fresco:animated-webp:${reactAndroidLibs.versions.fresco.get()}")
+
+    if (hermesEnabled.toBoolean()) {
+        implementation("com.facebook.react:hermes-android")
+    } else {
+        implementation jscFlavor
+    }
+}

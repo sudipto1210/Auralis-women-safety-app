@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AURALIS Network Security Configuration — RELEASE
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  • Blocks ALL cleartext (HTTP) traffic in production.
+  • Forces TLS 1.2+ for all network connections.
+  • The debug variant (src/debug/res/xml/) overrides this
+    to allow cleartext to the emulator (10.0.2.2) only.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Trust the system CA store only. No user-installed CAs. -->
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
