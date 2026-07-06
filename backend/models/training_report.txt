@@ -1,0 +1,42 @@
+AURALIS MOTION THREAT SVM MODEL TRAINING REPORT
+==================================================
+Date: 2026-06-10T03:22:04.587796
+Total Samples: 250
+
+Samples per class:
+  - normal_walk: 50 samples
+  - grab: 50 samples
+  - push_pull: 50 samples
+  - fall: 50 samples
+  - struggle: 50 samples
+
+5-Fold Stratified Cross-Validation (F1-macro):
+  Fold 1: 1.0000
+  Fold 2: 1.0000
+  Fold 3: 1.0000
+  Fold 4: 1.0000
+  Fold 5: 1.0000
+  Mean F1-macro Score: 1.0000 (+/- 0.0000)
+
+Final Model Evaluation (on full dataset):
+--------------------------------------------------
+Classification Report:
+              precision    recall  f1-score   support
+
+        fall       1.00      1.00      1.00        50
+        grab       1.00      1.00      1.00        50
+ normal_walk       1.00      1.00      1.00        50
+   push_pull       1.00      1.00      1.00        50
+    struggle       1.00      1.00      1.00        50
+
+    accuracy                           1.00       250
+   macro avg       1.00      1.00      1.00       250
+weighted avg       1.00      1.00      1.00       250
+
+
+Confusion Matrix:
+[[50  0  0  0  0]
+ [ 0 50  0  0  0]
+ [ 0  0 50  0  0]
+ [ 0  0  0 50  0]
+ [ 0  0  0  0 50]]

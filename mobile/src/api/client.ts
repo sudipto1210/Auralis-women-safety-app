@@ -143,6 +143,20 @@ export async function clearAllSecureStorage() {
   );
 }
 
+/**
+ * clearAuthTokens
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * Wipes only the JWT access token and its timestamp from the Keychain.
+ * This is used for logout and token-expired signouts, preserving
+ * the custom API server URL so the user doesn't have to re-enter it.
+ */
+export async function clearAuthTokens() {
+  const keys = [TOKEN_SERVICE, TOKEN_TIMESTAMP_SERVICE];
+  await Promise.allSettled(
+    keys.map((service) => Keychain.resetGenericPassword({ service }))
+  );
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // Core api() function
 // ──────────────────────────────────────────────────────────────────────

@@ -18,6 +18,7 @@ import { SettingsScreen } from "../screens/SettingsScreen";
 import { SafePlacesScreen } from "../screens/SafePlacesScreen";
 import { ChatbotScreen } from "../screens/ChatbotScreen";
 import { IncidentHistoryScreen } from "../screens/IncidentHistoryScreen";
+import { DataCollectionScreen } from "../screens/DataCollectionScreen";
 import { colors, spacing } from "../theme";
 
 export type RootStackParamList = {
@@ -29,6 +30,7 @@ export type RootStackParamList = {
   SafePlaces: undefined;
   Chatbot: undefined;
   IncidentHistory: undefined;
+  DataCollection: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -108,6 +110,7 @@ export function RootNavigator() {
               component={SettingsScreen}
               options={{ animation: "slide_from_bottom" }}
             />
+            <Stack.Screen name="DataCollection" component={DataCollectionScreen} />
             <Stack.Screen
               name="OnboardingContacts"
               component={OnboardingContactsScreen}

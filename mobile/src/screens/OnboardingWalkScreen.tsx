@@ -10,8 +10,13 @@ import { api } from "../api/client";
 import { useAuth } from "../store/AuthContext";
 import { useMotionSampler } from "../hooks/useMotionSampler";
 import type { SensorSample } from "../api/types";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../navigation/RootNavigator";
 
 export function OnboardingWalkScreen() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { refreshOnboarding } = useAuth();
   const { collectFor } = useMotionSampler();
   const [step, setStep] = useState<1 | 2 | "done">(1);
@@ -22,6 +27,18 @@ export function OnboardingWalkScreen() {
   const [normalData, setNormalData] = useState<SensorSample[] | null>(null);
 
   const pulse = useRef(new Animated.Value(1)).current;
+
+  const handleFinish = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Home" }],
+      });
+    }
+  };
   const phaseFade = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
 
@@ -121,6 +138,11 @@ export function OnboardingWalkScreen() {
         <Text style={styles.sub}>
           AURALIS now knows your walk rhythm and your emergency circle.
         </Text>
+        <Button
+          label="Enter dashboard"
+          onPress={handleFinish}
+          style={styles.doneButton}
+        />
       </Screen>
     );
   }
@@ -269,4 +291,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   doneIcon: { alignItems: "center", marginVertical: spacing.xl },
+  doneButton: { marginTop: spacing.xl },
 });

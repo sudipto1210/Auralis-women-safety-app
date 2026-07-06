@@ -215,15 +215,12 @@ class SecurityCheckModule(private val reactContext: ReactApplicationContext) :
             val digest = md.digest(cert)
             val hexHash = digest.joinToString("") { "%02x".format(it) }
 
-            // ── ACTION REQUIRED ────────────────────────────────────────────────
-            // Replace EXPECTED_CERT_HASH with the SHA-256 of your production
-            // signing certificate. Generate it with:
+            // NOTE: Replace EXPECTED_CERT_HASH with the SHA-256 of your production
+            // signing certificate. To get the hash, run:
             //   keytool -printcert -jarfile app-release.apk
-            // or check the walkthrough.md for instructions.
             //
-            // Until this is set, signature verification is SKIPPED (returns true)
-            // so you can build and test without a prod keystore.
-            // ──────────────────────────────────────────────────────────────────
+            // Until this is filled in, signature verification is skipped (returns true)
+            // so you can build and test without a production keystore.
             val EXPECTED_CERT_HASH = "" // <-- fill in after generating prod keystore
 
             if (EXPECTED_CERT_HASH.isEmpty()) {

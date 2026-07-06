@@ -1,0 +1,36 @@
+{
+  "feature_columns": [
+    "accel_mean",
+    "accel_std",
+    "accel_max",
+    "accel_min",
+    "accel_p25",
+    "accel_p75",
+    "accel_p95",
+    "jerk_mean",
+    "jerk_std",
+    "jerk_max",
+    "gyro_mean",
+    "gyro_std",
+    "gyro_max",
+    "cadence_zcr",
+    "impact_ratio",
+    "freefall_ratio",
+    "high_jerk_ratio",
+    "signal_energy"
+  ],
+  "labels": [
+    "fall",
+    "grab",
+    "normal_walk",
+    "push_pull",
+    "struggle"
+  ],
+  "threat_labels": [
+    "grab",
+    "push_pull",
+    "fall",
+    "struggle"
+  ],
+  "trained_at": "2026-06-10T03:22:04.587796"
+}

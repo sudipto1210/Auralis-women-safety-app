@@ -11,9 +11,11 @@ import {
   setToken,
   getToken,
   clearAllSecureStorage,
+  clearAuthTokens,
   registerUnauthorizedHandler,
 } from "../api/client";
 import type { AuthResponse, OnboardingStatus, User } from "../api/types";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
 type AuthState = {
   ready: boolean;
@@ -34,8 +36,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // ── Shared signout logic ─────────────────────────────────────────────
   const performSignOut = useCallback(async () => {
-    // clearAllSecureStorage wipes token + timestamp + API URL from Keychain
-    await clearAllSecureStorage();
+    try {
+      // Also sign out from Google to clear the cached user account
+      await GoogleSignin.signOut();
+    } catch (e) {
+      // Ignore if not configured or not signed in
+    }
+    // Wipes only token + timestamp, keeping API URL intact
+    await clearAuthTokens();
     setUser(null);
     setOnboardingStep(null);
   }, []);
@@ -88,8 +96,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setOnboardingStep("complete");
       }
     } catch {
-      // Token is invalid/expired — wipe all stored credentials
-      await clearAllSecureStorage();
+      // Token is invalid/expired — wipe stored credentials
+      try {
+        await GoogleSignin.signOut();
+      } catch {}
+      await clearAuthTokens();
       setUser(null);
       setOnboardingStep(null);
     } finally {

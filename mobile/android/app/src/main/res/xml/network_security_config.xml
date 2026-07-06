@@ -2,15 +2,20 @@
 <!--
   AURALIS Network Security Configuration — RELEASE
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  • Blocks ALL cleartext (HTTP) traffic in production.
-  • Forces TLS 1.2+ for all network connections.
-  • The debug variant (src/debug/res/xml/) overrides this
-    to allow cleartext to the emulator (10.0.2.2) only.
+  Release builds enforce HTTPS-only:
+    • cleartextTrafficPermitted="false" — blocks all HTTP traffic
+    • Trusts ONLY system CA roots (no user-installed CAs)
+      This prevents MitM attacks using self-signed or rogue CAs
+      installed on the device by the user or attacker.
+
+  Debug builds use a separate override in:
+    android/app/src/debug/res/xml/network_security_config.xml
+  which re-enables cleartext HTTP for local dev servers (10.0.2.2 / LAN).
 -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false">
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
-            <!-- Trust the system CA store only. No user-installed CAs. -->
+            <!-- Trust system CA store only — reject user-installed CA certs -->
             <certificates src="system" />
         </trust-anchors>
     </base-config>

@@ -2,7 +2,6 @@ package com.auralis.app
 
 import android.os.Build
 import android.os.Bundle
-import android.view.WindowManager
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -13,17 +12,6 @@ class MainActivity : ReactActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     setTheme(R.style.AppTheme)
     super.onCreate(savedInstanceState)
-
-    // ── Security: Prevent screenshots and screen recording ─────────────────
-    // FLAG_SECURE ensures the activity surface is not exposed in:
-    //   • The system recents/task-switcher thumbnail
-    //   • Screenshot APIs (adb screencap, MediaProjection)
-    //   • Screen-recording apps
-    // This is critical for a safety app that displays location and emergency info.
-    window.setFlags(
-      WindowManager.LayoutParams.FLAG_SECURE,
-      WindowManager.LayoutParams.FLAG_SECURE
-    )
   }
 
   /**

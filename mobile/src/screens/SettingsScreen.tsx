@@ -45,6 +45,11 @@ export function SettingsScreen() {
       icon: "time-outline" as const,
       onPress: () => navigation.navigate("IncidentHistory"),
     },
+    {
+      label: "Data collection (ML)",
+      icon: "clipboard-outline" as const,
+      onPress: () => navigation.navigate("DataCollection"),
+    },
   ];
 
   return (

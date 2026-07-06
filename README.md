@@ -49,7 +49,6 @@ AURALIS/
 * **Background Sensor Monitoring**: Collects accelerometer and gyroscope data at 50Hz and mic amplitude levels without battery-draining visual streams.
 * **Onboarding & Calibration**: Guides users through a 30-second walking baseline calibration to adjust thresholds to their individual movement signatures.
 * **Anti-Tampering & Integrity Module**: Runs a native Kotlin root trust validator before loading, checking for `su` binaries, root apps, emulators, active debuggers, and packaging signature pinning.
-* **Screenshot Prevention**: Enforces `FLAG_SECURE` window layout flags to block screen recorders, overlay malware, and local screenshot attempts.
 * **Hardware-Backed Cryptography**: Stores JWT session tokens, host API endpoints, and user credentials inside the encrypted Android Keystore via the Keychain API instead of plaintext storage.
 * **Logcat Sanitization**: Strips console log buffers during production compilation to prevent leakage of coordinates, motion signatures, or tokens over USB debugging.
 

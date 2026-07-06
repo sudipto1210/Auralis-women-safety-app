@@ -87,6 +87,10 @@ CORS(
     allow_headers=["Content-Type", "Authorization"],
 )
 
+# Register Data Collection Blueprint
+from collect_data import collect_bp
+app.register_blueprint(collect_bp)
+
 # CSRF protection disabled (no forms requiring CSRF in this app)
 
 
@@ -116,7 +120,8 @@ GOOGLE_CLIENT_ID = oauth_config["client_id"]
 # SENSOR FUSION MODULES (replaces CV2 camera system)
 # =========================================================
 
-from src.motion_detection.sensor_fusion import BaselineProfiler, MotionAnomalyDetector
+from src.motion_detection.sensor_fusion import BaselineProfiler
+from motion_anomaly_detector import MotionAnomalyDetector
 from src.speech_analysis.distress_detector import (
     DistressPipeline,
     extract_audio_features,
