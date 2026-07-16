@@ -1,4 +1,4 @@
-# AURALIS — Women Safety & Threat Monitoring Command Center
+# AURALIS - Women Safety & Threat Monitoring Command Center
 
 AURALIS is a comprehensive, real-time safety monitoring system that fuses speech distress, physical motion anomalies, and environmental context. It coordinates an **on-device/server-fusion pipeline** to estimate situational threat levels from SAFE to CRITICAL.
 
@@ -37,8 +37,6 @@ AURALIS/
 │
 ├── run.sh                            # Root convenience launcher (delegates to backend)
 ├── README.md                         # Main command center documentation
-├── Research_paper_Final.pdf          # Research paper (final PDF)
-└── Research_paper_Final.txt          # Research paper (source text)
 ```
 
 ---
