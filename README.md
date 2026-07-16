@@ -1,33 +1,32 @@
 # AURALIS - Women Safety & Threat Monitoring Command Center
 
-AURALIS is a comprehensive, real-time safety monitoring system that fuses speech distress, physical motion anomalies, and environmental context. It coordinates an **on-device/server-fusion pipeline** to estimate situational threat levels from SAFE to CRITICAL.
+The system is built around two tightly coupled components:
 
-The system is structured as two key components:
-1. **Hardened Android Mobile Client (`mobile/`)**: A native React Native CLI Android application that collects IMU sensor telemetry (accelerometer + gyroscope) and audio amplitude/pitch metrics in the background. It is hardened against tampering, reverse engineering, and data leaks.
-2. **Dynamic Fusion API Server (`backend/`)**: A Flask + Supabase backend server that runs gait/motion anomaly detection against user-calibrated walking baselines, filters audio through a four-layer voice activity and distress pipeline, evaluates context risks, and triggers automated SOS notifications.
+1. **Hardened Android Mobile Client** (`mobile/`) — A native React Native CLI app that collects IMU sensor telemetry (accelerometer + gyroscope) and audio features in the background. The client is hardened against tampering, reverse engineering, and credential leakage.
+2. **Threat Fusion API Server** (`backend/`) — A Flask + Supabase backend that runs gait anomaly detection against user-calibrated walking baselines, filters audio through a multi-layer distress pipeline, evaluates context risk, and triggers automated SOS notifications.
 
 ---
 
-## Project Architecture
+## Architecture
 
 ```
 AURALIS/
-├── backend/                          # REST API and threat processing engine
-│   ├── api/                          # Flask endpoints and authentication routes
-│   │   ├── server_backend.py         # Main Flask API coordinator
-│   │   ├── google_oauth.py           # OAuth identity verification
-│   │   └── wsgi.py                   # Production server entry point
-│   ├── database/                     # Supabase database operations manager
-│   │   └── database.py
-│   ├── src/                          # Signal processing & analysis modules
-│   │   ├── motion_detection/         # gait profiling and anomaly detection
-│   │   ├── speech_analysis/          # VAD & environment-adaptive audio engine
-│   │   ├── threat_assessment/        # stateful threat fusion & override logic
-│   │   └── context_engine/           # dynamic context weight adaptation
-│   ├── templates/                    # Server-rendered templates
-│   │   └── admin.html                # Admin supervision dashboard
-│   ├── static/                       # Admin console styling and scripts
-│   └── run.sh                        # Backend environment startup utility
+├── backend/                        # Flask REST API and threat processing engine
+│   ├── api/
+│   │   ├── server_backend.py       # Main API — all routes and threat coordination
+│   │   ├── google_oauth.py         # Google ID token verification
+│   │   ├── mobile_auth.py          # JWT token creation and validation
+│   │   └── wsgi.py                 # Production WSGI entry point (gunicorn)
+│   ├── database/
+│   │   └── database.py             # Supabase ORM layer for all tables
+│   ├── src/
+│   │   ├── motion_detection/       # Gait profiling and anomaly scoring
+│   │   ├── speech_analysis/        # VAD and environment-adaptive audio engine
+│   │   ├── threat_assessment/      # Sensor fusion and override logic
+│   │   └── context_engine/         # Dynamic context weight adaptation
+│   ├── data/                       # Runtime JSON files (gitignored)
+│   ├── requirements.txt
+│   └── run.sh                      # Dev server startup (creates venv automatically)
 │
 ├── mobile/                           # Hardened React Native CLI Android App
 │   ├── android/                      # Native Kotlin and Gradle settings
@@ -41,92 +40,138 @@ AURALIS/
 
 ---
 
-## Core Features
+## Features
 
-### 1. Hardened React Native Android App (`mobile/`)
-* **Background Sensor Monitoring**: Collects accelerometer and gyroscope data at 50Hz and mic amplitude levels without battery-draining visual streams.
-* **Onboarding & Calibration**: Guides users through a 30-second walking baseline calibration to adjust thresholds to their individual movement signatures.
-* **Anti-Tampering & Integrity Module**: Runs a native Kotlin root trust validator before loading, checking for `su` binaries, root apps, emulators, active debuggers, and packaging signature pinning.
-* **Hardware-Backed Cryptography**: Stores JWT session tokens, host API endpoints, and user credentials inside the encrypted Android Keystore via the Keychain API instead of plaintext storage.
-* **Logcat Sanitization**: Strips console log buffers during production compilation to prevent leakage of coordinates, motion signatures, or tokens over USB debugging.
+### Security & Privacy
+- **Device Integrity Gate** — Native Kotlin module checks for root access (`su` binaries, root app packages), attached debuggers, emulator fingerprints, and APK signature before any app logic runs.
+- **Hardware-Backed Token Storage** — JWT session tokens and API endpoint URLs are stored exclusively in the Android Keystore via the Keychain API, not AsyncStorage.
+- **HTTPS-Only Release Builds** — `network_security_config.xml` blocks all cleartext HTTP in release APKs and restricts trust to system CA roots (no user-installed CA certificates).
+- **Logcat Sanitization** — All `console.*` calls are stripped at transpile time in production builds. `android.util.Log` calls are stripped by R8/ProGuard rules.
+- **API Rate Limiting** — Flask-Limiter enforces per-IP limits on all telemetry and authentication endpoints.
 
-### 2. Multi-Layer Audio Distress Pipeline
-* **Layer 1: Noise Classification**: Categorizes ambient noise (Quiet, Street, Crowd, Transport) to adjust the detection threshold.
-* **Layer 2: Voice Activity Gate**: Autocorrelates pitch coordinates, filtering out ambient machine hums or wind noise, only analyzing sounds inside the human vocal frequency (85Hz-255Hz).
-* **Layer 3: Distress Classifier**: Extracts ZCR, pitch variance, spectral contrast, and 13-coefficient MFCC vectors to estimate distress probabilities via SVM or YAMNet.
-* **Layer 4: Adaptive Threshold**: Dynamically increases alerting requirements in noisy transits while maintaining high sensitivity in quiet environments.
+### Threat Detection
+- **Multi-Layer Audio Pipeline**
+  - Layer 1: Ambient noise classification (Quiet / Street / Crowd / Transport)
+  - Layer 2: Voice activity gating via autocorrelation in the 85–255 Hz human vocal range
+  - Layer 3: Distress scoring from ZCR, pitch variance, spectral contrast, and 13-coefficient MFCC vectors
+  - Layer 4: Adaptive threshold — higher sensitivity in quiet environments, reduced false positives in transit
+- **Per-User Motion Baseline** — 30-second onboarding calibration builds a statistical walking profile (cadence, jerk, accelerometer variance). Anomalies are scored as z-score deviations from this personal baseline.
+- **Sensor Fusion** — Motion and audio scores are weighted and fused into a single threat level (SAFE / LOW / MEDIUM / HIGH / CRITICAL) with context modifiers (time of day, location isolation).
+- **Critical Override** — Coordinated high-confidence events (e.g. FALL event + vocal distress) bypass smoothing and immediately trigger CRITICAL state.
 
-### 3. Stateful Sensor Fusion & Override Logic
-* **Dynamic Weight Context**: Adjusts sensor contribution based on situational risk (e.g. night hours, isolated locations, low crowd presence).
-* **Critical Event Overrides**: Instantly bypasses temporal exponential moving average (EMA) smoothing when high-risk events coordinate (e.g. `FALL` + vocal distress immediately triggers `CRITICAL`).
-* **Emergency Workflows**: Automatically alerts emergency contacts with live GPS coordinates, suggesting nearest safe locations (police stations, hospitals) within 5km on a customized map.
+### Emergency Workflows
+- SOS trigger notifies all registered emergency contacts with GPS coordinates and nearest safe places (police stations, hospitals within 5 km).
+- Location is stored in memory only — written to incident records only when threat level reaches HIGH or CRITICAL.
+- Audio features are never persisted — analyzed in-memory and discarded immediately after scoring.
 
 ---
 
 ## Getting Started
 
-### 1. Prerequisites
-- **Node.js**: Version 20 or higher.
-- **Java Development Kit (JDK)**: JDK 17 or higher (with `JAVA_HOME` set).
-- **Android SDK**: With `ANDROID_HOME` environment variable configured.
-- **Python**: Version 3.11 or higher.
+### Prerequisites
+
+| Tool | Version |
+|---|---|
+| Node.js | 20 or higher |
+| JDK | 17 or higher (`JAVA_HOME` set) |
+| Android SDK | API 33+ (`ANDROID_HOME` set) |
+| Python | 3.11 or higher |
 
 ---
 
-### 2. Run the REST API Backend
-```bash
-# Clone the repository
-git clone https://github.com/vulnerable4u/Auralis-women-safety-web-app.git AURALIS
-cd AURALIS
+### 1. Configure Environment Variables
 
-# Launch the startup script (creates venv and installs dependencies automatically)
+```bash
+# Backend
+cp .env.example .env
+# Fill in: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SECRET_KEY
+
+# Mobile
+cp mobile/.env.example mobile/.env
+# Fill in: EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID, EXPO_PUBLIC_GOOGLE_CLIENT_ID, EXPO_PUBLIC_API_URL
+```
+
+---
+
+### 2. Run the Backend Server
+
+```bash
 chmod +x run.sh
 ./run.sh
 ```
-The server will start on port `5001`. Access the admin supervision dashboard by logging in at `/login`.
+
+`run.sh` automatically creates a Python virtual environment at `./venv/`, installs all dependencies from `backend/requirements.txt`, and starts the Flask development server on port `5001`.
 
 ---
 
-### 3. Build & Run the Android Client
-```bash
-# Navigate to the mobile folder
-cd mobile
+### 3. Build & Run the Android App
 
-# Install JavaScript dependencies
+```bash
+cd mobile
 npm install
 
-# Connect a physical device (enable Developer Options → USB Debugging) or start an emulator
-# Set up SDK path (e.g., echo "sdk.dir=$ANDROID_HOME" > android/local.properties)
-# Then compile and launch the application:
+# Debug build (runs on connected device or emulator)
 npx react-native run-android
 ```
-* **On physical devices**, tap the settings gear on the login page and point the server host to your computer's LAN IP (e.g., `http://192.168.x.x:5001`). Emulators can connect directly to the loopback interface default (`http://10.0.2.2:5001`).
 
-Alternatively, open the `mobile/android/` project folder directly in **Android Studio** to sync Gradle and build, run, or profile the application.
+For a **release build**:
+
+```bash
+cd mobile/android
+./gradlew assembleRelease
+# APK: mobile/android/app/build/outputs/apk/release/app-release.apk
+```
+
+> On a physical device, open the settings page in the app and set the server URL to your machine's LAN IP (e.g. `http://192.168.x.x:5001`). On an emulator, use `http://10.0.2.2:5001`.
+
+---
+
+### 4. Set Up the Database
+
+Run the SQL in `backend/database/` against your Supabase project:
+
+1. **Schema** — Create all tables (users, emergency_contacts, threat_history, etc.)
+2. **RLS Policies** — Enable Row-Level Security so users can only access their own data
 
 ---
 
 ## API Reference
 
-### Telemetry Endpoints
+### Authentication
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/motion_data` | Post 5-second buffer of accelerometer/gyroscope readings. |
-| POST | `/api/audio_data` | Post real-time client-side extracted audio feature vector. |
-| POST | `/api/motion_baseline` | Save walking baseline readings for user profiling. |
-| GET | `/api/onboarding/status` | Retrieve contact and motion calibration progress for the user. |
+| POST | `/api/google-auth` | Exchange Google ID token for a JWT access token |
+| GET | `/api/mobile/me` | Get authenticated user profile |
+| GET | `/api/onboarding/status` | Check contacts and calibration progress |
+| POST | `/api/onboarding/contacts` | Save emergency contacts |
+| POST | `/api/onboarding/finish` | Complete onboarding after motion calibration |
 
-### Core Safety Endpoints
+### Telemetry
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/threat_status` | Fetch current threat level, contributions, and explanations. |
-| POST | `/api/start_monitoring` | Start server threat evaluation thread. |
-| POST | `/api/stop_monitoring` | Stop server threat evaluation thread. |
-| POST | `/api/trigger_sos` | Manually activate critical SOS status and notify contacts. |
-| GET | `/api/safe_places` | Get nearby safe zones prioritizing police and hospitals. |
+| POST | `/api/motion_data` | Submit accelerometer/gyroscope window for anomaly scoring |
+| POST | `/api/audio_data` | Submit extracted audio feature vector for distress scoring |
+| POST | `/api/motion_baseline` | Save walking baseline profile |
+| POST | `/api/update_location` | Update current GPS coordinates |
+
+### Safety
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/threat_status` | Get current threat level, scores, history |
+| POST | `/api/start_monitoring` | Start server-side threat evaluation |
+| POST | `/api/stop_monitoring` | Stop threat evaluation |
+| POST | `/api/trigger_sos` | Trigger SOS and notify emergency contacts |
+| GET | `/api/safe_places` | Get nearby police stations and hospitals |
+
+### Research & Evaluation
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/research_metrics` | Precision, false alarm rate, signal breakdown |
+| GET | `/api/research_report` | Full exportable JSON research report |
+| POST | `/api/incidents/<id>/feedback` | Label an incident as confirmed / false alarm |
 
 ---
 
-## 📄 License
-This project is created for educational and safety research purposes.
+## License
 
+This project is developed for educational and safety research purposes.

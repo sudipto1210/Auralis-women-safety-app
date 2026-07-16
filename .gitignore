@@ -46,7 +46,12 @@ gunicorn.pid
 *.db
 *.sqlite
 *.sqlite3
-data/users.json
+
+# Runtime data files — contain personal user data, never commit these
+backend/data/users.json
+backend/data/activity_logs.json
+backend/data/incident_timeline.json
+backend/data/baseline_profiles.json
 
 
 .env
@@ -68,6 +73,10 @@ GoogleService-Info.plist
 *.key
 *.mobileprovision
 mobile/android/keystore.properties
+mobile/android/app/debug.keystore
+
+# Mobile .env (contains Google OAuth client IDs and LAN server IP)
+mobile/.env
 
 *.log
 *.log.*

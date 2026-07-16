@@ -23,14 +23,12 @@
     "fall",
     "grab",
     "normal_walk",
-    "push_pull",
-    "struggle"
+    "panic_run"
   ],
   "threat_labels": [
     "grab",
-    "push_pull",
     "fall",
-    "struggle"
+    "panic_run"
   ],
-  "trained_at": "2026-06-10T03:22:04.587796"
+  "trained_at": "2026-07-06T22:39:40.132896"
 }

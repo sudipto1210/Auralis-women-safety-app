@@ -15,8 +15,8 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "backend"))
 from motion_features import FEATURE_COLUMNS
 
-VALID_LABELS = ["normal_walk", "grab", "push_pull", "fall", "struggle"]
-THREAT_LABELS = ["grab", "push_pull", "fall", "struggle"]
+VALID_LABELS = ["normal_walk", "grab", "fall", "panic_run"]
+THREAT_LABELS = ["grab", "fall", "panic_run"]
 
 # Feature centers for synthetic data fallback
 SYNTHETIC_CENTERS = {
@@ -29,38 +29,31 @@ SYNTHETIC_CENTERS = {
         "high_jerk_ratio": 0.0, "signal_energy": 1.01
     },
     "grab": {
-        "accel_mean": 1.5, "accel_std": 0.8, "accel_max": 4.5, "accel_min": 0.5,
-        "accel_p25": 1.0, "accel_p75": 1.8, "accel_p95": 3.8,
-        "jerk_mean": 1.2, "jerk_std": 0.6, "jerk_max": 4.2,
-        "gyro_mean": 1.5, "gyro_std": 0.8, "gyro_max": 3.5,
-        "cadence_zcr": 4, "impact_ratio": 0.05, "freefall_ratio": 0.05,
-        "high_jerk_ratio": 0.2, "signal_energy": 2.89
-    },
-    "push_pull": {
-        "accel_mean": 1.3, "accel_std": 0.4, "accel_max": 2.8, "accel_min": 0.6,
-        "accel_p25": 0.9, "accel_p75": 1.5, "accel_p95": 2.4,
-        "jerk_mean": 0.6, "jerk_std": 0.3, "jerk_max": 2.0,
-        "gyro_mean": 0.8, "gyro_std": 0.4, "gyro_max": 1.8,
-        "cadence_zcr": 8, "impact_ratio": 0.0, "freefall_ratio": 0.0,
-        "high_jerk_ratio": 0.05, "signal_energy": 1.85
+        "accel_mean": 1.2, "accel_std": 1.1, "accel_max": 6.0, "accel_min": 0.1,
+        "accel_p25": 0.3, "accel_p75": 1.6, "accel_p95": 4.5,
+        "jerk_mean": 1.3, "jerk_std": 1.0, "jerk_max": 5.5,
+        "gyro_mean": 1.8, "gyro_std": 1.3, "gyro_max": 4.5,
+        "cadence_zcr": 4, "impact_ratio": 0.12, "freefall_ratio": 0.18,
+        "high_jerk_ratio": 0.3, "signal_energy": 2.5
     },
     "fall": {
-        "accel_mean": 1.1, "accel_std": 1.2, "accel_max": 6.5, "accel_min": 0.05,
-        "accel_p25": 0.2, "accel_p75": 1.4, "accel_p95": 4.8,
-        "jerk_mean": 1.5, "jerk_std": 1.1, "jerk_max": 6.0,
-        "gyro_mean": 2.0, "gyro_std": 1.5, "gyro_max": 5.0,
-        "cadence_zcr": 3, "impact_ratio": 0.15, "freefall_ratio": 0.25,
-        "high_jerk_ratio": 0.35, "signal_energy": 2.65
-    },
-    "struggle": {
         "accel_mean": 1.8, "accel_std": 0.9, "accel_max": 4.0, "accel_min": 0.4,
         "accel_p25": 1.1, "accel_p75": 2.3, "accel_p95": 3.6,
         "jerk_mean": 1.4, "jerk_std": 0.7, "jerk_max": 3.5,
         "gyro_mean": 2.2, "gyro_std": 1.0, "gyro_max": 4.5,
         "cadence_zcr": 16, "impact_ratio": 0.08, "freefall_ratio": 0.02,
         "high_jerk_ratio": 0.25, "signal_energy": 4.05
+    },
+    "panic_run": {
+        "accel_mean": 1.6, "accel_std": 0.5, "accel_max": 3.2, "accel_min": 0.5,
+        "accel_p25": 1.1, "accel_p75": 1.9, "accel_p95": 2.8,
+        "jerk_mean": 0.8, "jerk_std": 0.4, "jerk_max": 2.2,
+        "gyro_mean": 1.2, "gyro_std": 0.6, "gyro_max": 2.5,
+        "cadence_zcr": 22, "impact_ratio": 0.01, "freefall_ratio": 0.0,
+        "high_jerk_ratio": 0.1, "signal_energy": 2.8
     }
 }
+
 
 def generate_synthetic_data(samples_per_class=50):
     """Generates synthetic feature rows with noise for pipeline bootstrap."""

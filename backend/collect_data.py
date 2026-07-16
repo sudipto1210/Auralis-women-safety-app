@@ -5,7 +5,7 @@ from motion_features import extract_features, FEATURE_COLUMNS
 
 collect_bp = Blueprint("collect_data", __name__)
 
-VALID_LABELS = {"normal_walk", "grab", "push_pull", "fall", "struggle"}
+VALID_LABELS = {"normal_walk", "grab", "fall", "panic_run"}
 REQUIRED_KEYS = {"ax", "ay", "az", "gx", "gy", "gz"}
 
 # Set up data collection directory

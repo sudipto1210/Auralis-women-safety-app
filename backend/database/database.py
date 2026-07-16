@@ -117,19 +117,6 @@ class UserDB:
         return None
     
     @staticmethod
-    def get_admin_users() -> list:
-        """Get all admin users"""
-        supabase = get_supabase()
-        result = supabase.table("users").select("*").eq("is_admin", True).execute()
-        return result.data or []
-    
-    @staticmethod
-    def get_all_users() -> list:
-        """Get all users (admin use only)"""
-        supabase = get_supabase()
-        result = supabase.table("users").select("*").order("created_at", desc=True).execute()
-        return result.data or []
-    
     @staticmethod
     def create(
         email: str,
@@ -138,7 +125,6 @@ class UserDB:
         picture: str = None,
         google_id: str = None,
         password_hash: str = None,
-        is_admin: bool = False,
         needs_onboarding: bool = True,
         contacts: list = None
     ) -> dict:
@@ -152,7 +138,6 @@ class UserDB:
             "picture": picture,
             "google_id": google_id,
             "password_hash": password_hash,  # NULL for OAuth users
-            "is_admin": is_admin,
             "needs_onboarding": needs_onboarding,
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat()
@@ -228,93 +213,7 @@ class UserDB:
         supabase = get_supabase()
         supabase.table("users").delete().eq("id", user_id).execute()
     
-    @staticmethod
-    def verify_password(email: str, password: str) -> bool:
-        """
-        Verify user password - returns False for OAuth users
-        Can accept either email or username (for admin login)
-        """
-        # Try to find user by email first
-        user = UserDB.get_by_email(email)
-        
-        # If not found by email, try username
-        if not user:
-            user = UserDB.get_by_username(email)
-        
-        if not user:
-            return False
-        
-        # OAuth users have NULL password_hash
-        if user.get("password_hash") is None:
-            return False
-        
-        # Must be admin to login with password
-        if not user.get("is_admin", False):
-            return False
-        
-        return check_password_hash(user["password_hash"], password)
-    
-    @staticmethod
-    def is_admin(email: str) -> bool:
-        """Check if user is admin"""
-        user = UserDB.get_by_email(email)
-        
-        if not user:
-            return False
-        
-        return user.get("is_admin", False)
-    
-    @staticmethod
-    def create_admin(username: str, password: str) -> dict:
-        """Create or update admin user with hashed password"""
-        supabase = get_supabase()
-        
-        # Hash the password using Werkzeug's bcrypt
-        hashed_password = generate_password_hash(password)
-        
-        # Check if admin already exists
-        existing = UserDB.get_by_username(username)
-        
-        user_data = {
-            "username": username,
-            "email": f"{username}@admin.local",
-            "name": "Administrator",
-            "password_hash": hashed_password,
-            "is_admin": True,
-            "needs_onboarding": False,
-            "updated_at": datetime.now().isoformat()
-        }
-        
-        if existing:
-            # Update existing admin
-            result = supabase.table("users").update(user_data).eq("id", existing["id"]).execute()
-        else:
-            # Create new admin
-            user_data["created_at"] = datetime.now().isoformat()
-            result = supabase.table("users").insert(user_data).execute()
-        
-        if result.data and len(result.data) > 0:
-            return result.data[0]
-        
-        raise Exception("Failed to create/update admin user")
-    
-    @staticmethod
-    def update_admin_password(username: str, new_password: str) -> dict:
-        """Update admin password with new hashed password"""
-        supabase = get_supabase()
-        
-        hashed_password = generate_password_hash(new_password)
-        
-        result = supabase.table("users").update({
-            "password_hash": hashed_password,
-            "updated_at": datetime.now().isoformat()
-        }).eq("username", username).eq("is_admin", True).execute()
-        
-        if result.data and len(result.data) > 0:
-            return result.data[0]
-        
-        raise Exception("Failed to update admin password")
-    
+
     @staticmethod
     def get_or_create_oauth_user(user_data: dict) -> tuple:
         """
@@ -323,7 +222,6 @@ class UserDB:
         
         OAuth users will have:
         - password_hash = NULL
-        - is_admin = FALSE
         """
         email = user_data["email"]
         
@@ -332,7 +230,6 @@ class UserDB:
         
         if existing:
             # Update existing user with latest OAuth data
-            # IMPORTANT: Never overwrite is_admin or password_hash for OAuth users
             update_data = {
                 "name": user_data["name"],
                 "picture": user_data["picture"],
@@ -341,15 +238,13 @@ class UserDB:
                 "updated_at": datetime.now().isoformat()
             }
             
-            # Preserve admin status and password_hash
-            update_data["is_admin"] = existing.get("is_admin", False)
+            # Preserve password_hash
             update_data["password_hash"] = existing.get("password_hash")
             
             result = UserDB.update_by_id(existing["id"], **update_data)
             return result, False
         else:
             # Create new OAuth user
-            # IMPORTANT: OAuth users cannot be admins and have NULL password_hash
             # Generate unique username from email prefix + random suffix
             email_prefix = email.split('@')[0]
             unique_username = f"{email_prefix}_{uuid4().hex[:6]}"
@@ -361,7 +256,6 @@ class UserDB:
                 picture=user_data["picture"],
                 google_id=user_data["google_id"],
                 password_hash=None,  # NULL for OAuth users
-                is_admin=False,  # OAuth users cannot be admins
                 needs_onboarding=True
             )
             return user, True
@@ -674,7 +568,6 @@ class MigrationHelper:
                     picture=user_data.get("picture"),
                     google_id=user_data.get("google_id"),
                     password_hash=user_data.get("password_hash"),
-                    is_admin=user_data.get("is_admin", False),
                     needs_onboarding=user_data.get("needs_onboarding", True)
                 )
                 
@@ -890,31 +783,5 @@ def check_database_connection() -> bool:
         return False
 
 
-def ensure_admin_exists(default_username: str = "admin", default_password: str = None):
-    """
-    Ensure admin user exists in database
-    This replaces the old bootstrap_admin() function
-    """
-    try:
-        admins = UserDB.get_admin_users()
-        
-        if len(admins) == 0:
-            # No admin exists, create one
-            if default_password is None:
-                print("⚠️  No admin user found and no default password provided")
-                print("   Please create admin user manually using:")
-                print("   python -c 'from database import UserDB; UserDB.create_admin(\"admin\", \"your-password\")'")
-                return False
-            
-            print(f"🔐 Creating default admin user: {default_username}")
-            UserDB.create_admin(default_username, default_password)
-            print(f"✅ Admin user '{default_username}' created successfully")
-        else:
-            print(f"✅ Admin user(s) found: {[a['username'] for a in admins]}")
-        
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error ensuring admin exists: {e}")
-        return False
+
 

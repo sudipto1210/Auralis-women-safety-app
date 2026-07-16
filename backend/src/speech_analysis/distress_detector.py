@@ -200,14 +200,110 @@ class BinaryDistressDetector:
             audio_features: dict with MFCCs, spectral features, pitch, energy
 
         Returns:
-            dict: {distress_score: 0.0-1.0, confidence: float, raw_label: str}
+            dict: {distress_score: 0.0-1.0, confidence: float, raw_label: str, audioset_class_probabilities: dict}
         """
+        audioset_probs = self._predict_audioset(audio_features)
+
         if self._model_type == "svm" and self._model is not None:
-            return self._predict_svm(audio_features)
+            res = self._predict_svm(audio_features)
         elif self._model_type == "yamnet" and self._model is not None:
-            return self._predict_yamnet(audio_features)
+            res = self._predict_yamnet(audio_features)
         else:
-            return self._predict_rule_based(audio_features)
+            res = self._predict_rule_based(audio_features)
+
+        # Overwrite distress_score with the AudioSet distress probability sum for consistency
+        distress_sum = sum(audioset_probs[c] for c in ["Scream", "Shriek", "Groan", "Grunt", "Yell", "Crying_Sobbing"])
+        res["distress_score"] = round(float(distress_sum), 4)
+        res["audioset_class_probabilities"] = audioset_probs
+        return res
+
+    def _predict_audioset(self, audio_features):
+        """
+        Estimate AudioSet class probabilities based on acoustic features.
+        Classes: Scream, Shriek, Groan, Grunt, Yell, Crying_Sobbing, Sigh, Other
+        """
+        energy = audio_features.get("energy", 0.0)
+        pitch = audio_features.get("pitch", 0.0)
+        pitch_variance = audio_features.get("pitch_variance", 0.0)
+        spectral_contrast = audio_features.get("spectral_contrast_mean", 0.0)
+        zcr = audio_features.get("zcr_mean", 0.0)
+
+        # Helper functions
+        def sigmoid(x, threshold, scale):
+            return 1.0 / (1.0 + np.exp(-scale * (x - threshold)))
+
+        def gaussian(x, mean, std):
+            return np.exp(-((x - mean) ** 2) / (2 * (std ** 2)))
+
+        # 1. Scream: High energy, high pitch, high contrast, high ZCR
+        scream_energy = sigmoid(energy, 0.18, 10.0)
+        scream_pitch = sigmoid(pitch, 190.0, 0.04)
+        scream_contrast = sigmoid(spectral_contrast, 18.0, 0.15)
+        scream_zcr = sigmoid(zcr, 0.12, 15.0)
+        scream_score = scream_energy * scream_pitch * scream_contrast * scream_zcr
+
+        # 2. Shriek: High energy, extremely high pitch, high contrast, high ZCR
+        shriek_energy = sigmoid(energy, 0.15, 10.0)
+        shriek_pitch = sigmoid(pitch, 230.0, 0.05)
+        shriek_contrast = sigmoid(spectral_contrast, 20.0, 0.15)
+        shriek_zcr = sigmoid(zcr, 0.15, 15.0)
+        shriek_score = shriek_energy * shriek_pitch * shriek_contrast * shriek_zcr
+
+        # 3. Groan: Low pitch, medium energy, low contrast, low ZCR
+        groan_energy = sigmoid(energy, 0.08, 15.0)
+        groan_pitch = gaussian(pitch, 100.0, 15.0) if pitch > 0.0 else 0.0
+        groan_contrast = 1.0 - sigmoid(spectral_contrast, 15.0, 0.2)
+        groan_zcr = 1.0 - sigmoid(zcr, 0.08, 25.0)
+        groan_score = groan_energy * groan_pitch * groan_contrast * groan_zcr
+
+        # 4. Grunt: Low pitch, moderate-high energy, low ZCR
+        grunt_energy = sigmoid(energy, 0.12, 12.0)
+        grunt_pitch = gaussian(pitch, 110.0, 20.0) if pitch > 0.0 else 0.0
+        grunt_contrast = 1.0 - sigmoid(spectral_contrast, 18.0, 0.2)
+        grunt_zcr = 1.0 - sigmoid(zcr, 0.10, 20.0)
+        grunt_score = grunt_energy * grunt_pitch * grunt_contrast * grunt_zcr
+
+        # 5. Yell: High energy, speaking/yelling pitch, high contrast
+        yell_energy = sigmoid(energy, 0.22, 12.0)
+        yell_pitch = gaussian(pitch, 165.0, 30.0) if pitch > 0.0 else 0.0
+        yell_contrast = sigmoid(spectral_contrast, 15.0, 0.15)
+        yell_score = yell_energy * yell_pitch * yell_contrast
+
+        # 6. Crying/Sobbing: Wavering pitch (high pitch variance), moderate energy
+        crying_energy = sigmoid(energy, 0.08, 10.0)
+        crying_pitch = gaussian(pitch, 160.0, 40.0) if pitch > 0.0 else 0.0
+        crying_variance = sigmoid(pitch_variance, 25.0, 0.1)
+        crying_score = crying_energy * crying_pitch * crying_variance
+
+        # 7. Sigh: Very low energy, low pitch, low ZCR
+        sigh_energy = gaussian(energy, 0.03, 0.02)
+        sigh_pitch = gaussian(pitch, 100.0, 30.0) if pitch > 0.0 else 0.0
+        sigh_zcr = 1.0 - sigmoid(zcr, 0.06, 30.0)
+        sigh_score = sigh_energy * sigh_pitch * sigh_zcr
+
+        # 8. Other: Base voice activity probability
+        other_score = 0.15
+
+        # Normalize to probability distribution
+        scores = {
+            "Scream": float(scream_score),
+            "Shriek": float(shriek_score),
+            "Groan": float(groan_score),
+            "Grunt": float(grunt_score),
+            "Yell": float(yell_score),
+            "Crying_Sobbing": float(crying_score),
+            "Sigh": float(sigh_score),
+            "Other": float(other_score)
+        }
+        total = sum(scores.values())
+        if total > 0:
+            probs = {k: round(v / total, 4) for k, v in scores.items()}
+        else:
+            probs = {k: 0.0 for k in scores}
+            probs["Other"] = 1.0
+
+        return probs
+
 
     def _predict_svm(self, audio_features):
         """SVM-based distress prediction."""
@@ -421,6 +517,10 @@ class DistressPipeline:
                 "environment": environment,
                 "vad": vad_result,
                 "event_type": "NONE",
+                "audioset_class_probabilities": {
+                    "Scream": 0.0, "Shriek": 0.0, "Groan": 0.0, "Grunt": 0.0,
+                    "Yell": 0.0, "Crying_Sobbing": 0.0, "Sigh": 0.0, "Other": 1.0
+                },
                 "reason": "no_voice",
                 "latency_ms": round((time.time() - start_time) * 1000, 2),
             }
@@ -443,6 +543,7 @@ class DistressPipeline:
             "threshold_used": threshold_result["threshold_used"],
             "raw_distress_score": distress_result["distress_score"],
             "raw_label": distress_result["raw_label"],
+            "audioset_class_probabilities": distress_result.get("audioset_class_probabilities", {}),
             "reason": "distress_analysis_complete",
             "latency_ms": latency_ms,
         }

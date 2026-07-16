@@ -31,12 +31,10 @@ def initialize_supabase_once():
             from database.database import (
                 init_supabase,
                 check_database_connection,
-                ensure_admin_exists,
             )
 
             init_supabase()
             if check_database_connection():
-                ensure_admin_exists()
                 logger.info("Supabase initialized")
             _supabase_initialized = True
         except Exception as e:

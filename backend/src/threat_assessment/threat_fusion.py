@@ -78,15 +78,15 @@ def fuse_threat_signals(
     # Override logic for critical combinations
     override_reason = None
 
-    # FALL + distress → CRITICAL
-    if motion_event == "FALL" and audio_score > 0.5:
+    # GRAB + distress → CRITICAL
+    if motion_event == "GRAB" and audio_score > 0.5:
         fused_score = max(fused_score, 0.9)
-        override_reason = "FALL detected with audio distress"
+        override_reason = "GRAB detected with audio distress"
 
-    # STRUGGLE + distress → CRITICAL
-    if motion_event == "STRUGGLE" and audio_score > 0.65:
+    # FALL + distress → CRITICAL
+    if motion_event == "FALL" and audio_score > 0.65:
         fused_score = max(fused_score, 0.85)
-        override_reason = "STRUGGLE detected with audio distress"
+        override_reason = "FALL detected with audio distress"
 
     # Motion alone at very high → HIGH (silent attack scenario)
     if motion_score > 0.85 and audio_score < 0.3:
@@ -98,10 +98,12 @@ def fuse_threat_signals(
         fused_score = max(fused_score, 0.65)
         override_reason = "High audio distress (possible stationary victim)"
 
-    # GRABBED event
-    if motion_event == "GRABBED":
-        fused_score = max(fused_score, 0.7)
-        override_reason = "GRABBED event detected"
+
+
+    # PANIC_RUN event
+    if motion_event == "PANIC_RUN":
+        fused_score = max(fused_score, 0.6)
+        override_reason = "PANIC_RUN event detected"
 
     # Clamp
     fused_score = max(0.0, min(1.0, fused_score))

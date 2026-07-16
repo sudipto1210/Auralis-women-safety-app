@@ -21,6 +21,8 @@ from flask import (
 )
 from dotenv import load_dotenv
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 from api.mobile_auth import create_mobile_token, verify_mobile_token
 
@@ -47,7 +49,6 @@ from database.database import (
     EmergencyContactsDB,
     ActivityLogsDB,
     ConfigDB,
-    ensure_admin_exists,
     check_database_connection,
 )
 
@@ -76,15 +77,27 @@ app = Flask(
 app.secret_key = os.environ.get("SECRET_KEY", "change-this-in-production")
 app.config["SESSION_COOKIE_SECURE"] = PRODUCTION
 app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SAMESITE"] = "Strict"  # Upgraded from Lax → Strict
 app.config["DEBUG"] = False
 app.config["TESTING"] = False
+# Limit maximum incoming request payload to 512 KB to prevent memory exhaustion
+app.config["MAX_CONTENT_LENGTH"] = 512 * 1024
 
 CORS(
     app,
     resources={r"/api/*": {"origins": "*"}},
     supports_credentials=False,
     allow_headers=["Content-Type", "Authorization"],
+)
+
+# ── Rate Limiter ──────────────────────────────────────────────────────────
+# Uses in-memory storage by default (stateless, per-process).
+# For multi-worker deployments, set RATELIMIT_STORAGE_URI to a Redis URL.
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per minute"],  # Global fallback for all routes
+    storage_uri=os.environ.get("RATELIMIT_STORAGE_URI", "memory://"),
 )
 
 # Register Data Collection Blueprint
@@ -109,7 +122,6 @@ def bind_mobile_bearer_session():
         session["needs_onboarding"] = user.get("needs_onboarding", True)
         session["user_name"] = user.get("name", email)
         session["user_picture"] = user.get("picture", "")
-        session["is_admin"] = user.get("is_admin", False)
 
 
 # Load Google OAuth config
@@ -179,7 +191,7 @@ def save_json_file(path, data):
 
 
 def initialize_database():
-    """Initialize database connection and ensure admin exists"""
+    """Initialize database connection"""
     try:
         # Initialize Supabase client
         init_supabase()
@@ -187,9 +199,6 @@ def initialize_database():
         # Check connection
         if not check_database_connection():
             raise RuntimeError("Database connection failed")
-
-        # Ensure admin user exists (database is single source of truth)
-        ensure_admin_exists()
 
         print("Database initialized successfully")
         return True
@@ -538,19 +547,6 @@ def threat_monitoring_loop():
 def index():
     print(f"[DEBUG] Index route - username: {session.get('username')}")
     print(f"[DEBUG] Index route - needs_onboarding: {session.get('needs_onboarding')}")
-    print(f"[DEBUG] Index route - is_admin: {session.get('is_admin')}")
-
-    # Log out admin users if they try to access the main page
-    if session.get("is_admin"):
-        admin_username = session.get("username")
-        log_activity(
-            "admin",
-            admin_username,
-            "Admin logged out (homepage access)",
-            "Admin attempted to access main page",
-        )
-        rotate_session()
-        return redirect(url_for("admin_login"))
 
     # Redirect users who haven't completed onboarding
     if session.get("username") and session.get("needs_onboarding"):
@@ -562,7 +558,6 @@ def index():
         "index.html",
         logged_in="username" in session,
         username=session.get("username"),
-        is_admin=session.get("is_admin", False),
     )
 
 
@@ -575,6 +570,7 @@ def user_login():
 
 
 @app.route("/api/google-auth", methods=["POST"])
+@limiter.limit("10 per minute; 30 per hour")  # Prevent brute-force token submission
 def google_auth():
     """Handle Google ID token authentication"""
     try:
@@ -595,7 +591,6 @@ def google_auth():
         session["username"] = username
         session["user_name"] = user_data["name"]
         session["user_picture"] = user_data["picture"]
-        session["is_admin"] = False
 
         # Get user from database to get onboarding state
         user = UserDB.get_by_email(username)
@@ -648,13 +643,7 @@ def google_auth():
 @app.route("/logout")
 def logout():
     username = session.get("username")
-    is_admin = session.get("is_admin", False)
-
-    if is_admin:
-        log_activity("admin", username, "Admin logged out")
-    else:
-        log_activity("user", username, "User logged out")
-
+    log_activity("user", username, "User logged out")
     rotate_session()
     return redirect(url_for("index"))
 
@@ -717,7 +706,6 @@ def _save_onboarding_contacts(contacts):
             name=session.get("user_name", username),
             picture=session.get("user_picture", ""),
             password_hash=None,
-            is_admin=False,
             needs_onboarding=True,
             contacts=contacts,
         )
@@ -872,285 +860,7 @@ def finish_onboarding():
     )
 
 
-# ---------------- ADMIN LOGIN ----------------
 
-
-@app.route("/login", methods=["GET", "POST"])
-def admin_login():
-    """Admin login - validates against database with hashed password"""
-    if request.method == "POST":
-        u = request.form.get("username")
-        p = request.form.get("password")
-
-        # Verify credentials against database
-        if UserDB.verify_password(u, p):
-            rotate_session()
-            session["username"] = u
-            session["is_admin"] = True
-
-            # Update last login
-            UserDB.update_last_login(u)
-
-            # Log admin login
-            log_activity("admin", u, "Admin logged in")
-
-            return redirect(url_for("admin_dashboard"))
-
-        return render_template("login.html", error="Invalid credentials")
-
-    return render_template("login.html")
-
-
-# ---------------- ADMIN DASHBOARD ----------------
-
-
-@app.route("/admin")
-def admin_dashboard():
-    """Admin dashboard - shows all users from database"""
-    if not session.get("is_admin"):
-        return redirect(url_for("admin_login"))
-
-    # Get all users from database
-    users_data = UserDB.get_all_users()
-
-    # Process users data for template
-    users_list = []
-    total_contacts = 0
-
-    for user_data in users_data:
-        # Get contacts count from database
-        contacts = EmergencyContactsDB.get_by_user(user_data["id"])
-        contact_count = len(contacts)
-        total_contacts += contact_count
-
-        # Create user object for template
-        user_obj = {
-            "username": user_data.get("username", user_data.get("email")),
-            "contact_count": contact_count,
-            "created_at": user_data.get("created_at", ""),
-            "is_admin": user_data.get("is_admin", False),
-            "email": user_data.get("email", user_data.get("username")),
-            "name": user_data.get("name", ""),
-            "last_login": user_data.get("last_login", ""),
-        }
-        users_list.append(user_obj)
-
-    # Calculate statistics (exclude admin users)
-    regular_users = [u for u in users_list if not u.get("is_admin", False)]
-    total_users = len(regular_users)
-    active_users = len([u for u in regular_users if u.get("last_login")])
-    avg_contacts_per_user = (
-        round(total_contacts / total_users, 1) if total_users > 0 else 0
-    )
-
-    stats = {
-        "total_users": total_users,
-        "active_users": active_users,
-        "total_contacts": total_contacts,
-        "avg_contacts_per_user": avg_contacts_per_user,
-    }
-
-    return render_template("admin.html", users=users_list, stats=stats)
-
-
-# ---------------- USER DELETION ----------------
-
-
-@app.route("/api/admin/delete_user", methods=["POST"])
-def admin_delete_user():
-    """Delete a user - admin only"""
-    if not session.get("is_admin"):
-        return jsonify({"error": "Admin authentication required"}), 403
-
-    try:
-        data = request.get_json()
-        username_to_delete = data.get("username")
-
-        if not username_to_delete:
-            return jsonify({"error": "Username is required"}), 400
-
-        # Prevent admin from deleting themselves
-        if username_to_delete == session.get("username"):
-            return jsonify({"error": "Cannot delete your own admin account"}), 400
-
-        # Get user from database - try email first, then username
-        user = UserDB.get_by_email(username_to_delete)
-
-        if not user:
-            user = UserDB.get_by_username(username_to_delete)
-
-        if not user:
-            return jsonify({"error": "User not found"}), 404
-
-        # Prevent deleting admin users
-        if user.get("is_admin"):
-            return jsonify({"error": "Cannot delete admin users"}), 400
-
-        # Delete user from database (contacts will be deleted via CASCADE)
-        UserDB.delete_by_id(user["id"])
-
-        # Log admin action
-        log_activity(
-            "admin",
-            session.get("username"),
-            "User deleted",
-            f"Deleted user: {username_to_delete}",
-        )
-
-        print(f"Admin '{session.get('username')}' deleted user '{username_to_delete}'")
-
-        return jsonify(
-            {
-                "status": "success",
-                "message": f"User '{username_to_delete}' has been deleted successfully",
-            }
-        )
-
-    except Exception as e:
-        print(f"Error deleting user: {e}")
-        return jsonify({"error": "Failed to delete user"}), 500
-
-
-# ---------------- ACTIVITY LOGS ----------------
-
-
-@app.route("/api/admin/activity_logs")
-def get_activity_logs():
-    """Get recent activity logs - admin only"""
-    if not session.get("is_admin"):
-        return jsonify({"error": "Admin authentication required"}), 403
-
-    try:
-        logs = ActivityLogsDB.get_recent(20)
-
-        return jsonify({"status": "success", "logs": logs})
-
-    except Exception as e:
-        print(f"Error loading activity logs: {e}")
-        return jsonify({"error": "Failed to load activity logs"}), 500
-
-
-# ---------------- USER THREAT STATUS ----------------
-
-
-@app.route("/api/admin/user_threat_status")
-def get_user_threat_status():
-    """Get threat status for all users - admin only"""
-    if not session.get("is_admin"):
-        return jsonify({"error": "Admin authentication required"}), 403
-
-    try:
-        users_data = UserDB.get_all_users()
-        user_threat_data = []
-
-        global_threat_state = current_threat_state
-        global_threat_score = current_threat_score
-
-        for user_data in users_data:
-            # Skip admin users
-            if user_data.get("is_admin"):
-                continue
-
-            user_threat_info = {
-                "username": user_data.get("username", user_data.get("email")),
-                "threat_state": global_threat_state,
-                "threat_score": global_threat_score,
-                "last_updated": datetime.now().isoformat(),
-                "monitoring_active": monitoring_active,
-                "email": user_data.get("email", ""),
-                "created_at": user_data.get("created_at", ""),
-            }
-
-            user_threat_data.append(user_threat_info)
-
-        return jsonify(
-            {
-                "status": "success",
-                "users": user_threat_data,
-                "global_threat_state": global_threat_state,
-                "global_threat_score": global_threat_score,
-            }
-        )
-
-    except Exception as e:
-        print(f"Error loading user threat status: {e}")
-        return jsonify({"error": "Failed to load user threat status"}), 500
-
-
-# ---------------- DETECTABILITY ----------------
-
-
-@app.route("/api/admin/detectability")
-def get_detectability():
-    """Get user detectability data for admin map - admin only"""
-    if not session.get("is_admin"):
-        return jsonify({"error": "Admin authentication required"}), 403
-
-    try:
-        users_data = UserDB.get_all_users()
-        users_list = []
-
-        for user_data in users_data:
-            # Skip admin users
-            if user_data.get("is_admin"):
-                continue
-
-            user_info = {
-                "username": user_data.get("username", user_data.get("email")),
-                "email": user_data.get("email", ""),
-                "status": "OFFLINE",
-                "threat_level": "SAFE",
-                "location": None,
-                "last_seen": user_data.get("last_login", datetime.now().isoformat()),
-            }
-
-            users_list.append(user_info)
-
-        return jsonify({"status": "success", "users": users_list})
-
-    except Exception as e:
-        print(f"Error loading detectability data: {e}")
-        return jsonify({"error": "Failed to load detectability data"}), 500
-
-
-# ---------------- USER DETAILS ----------------
-
-
-@app.route("/api/admin/user_details/<username>")
-def get_user_details(username):
-    """Get detailed user information - admin only"""
-    if not session.get("is_admin"):
-        return jsonify({"error": "Admin authentication required"}), 403
-
-    try:
-        # Try to find user by email first, then username
-        user = UserDB.get_by_email(username)
-        if not user:
-            user = UserDB.get_by_username(username)
-
-        if not user:
-            return jsonify({"error": "User not found"}), 404
-
-        # Get user's emergency contacts
-        contacts = EmergencyContactsDB.get_by_user(user["id"])
-
-        return jsonify(
-            {
-                "status": "success",
-                "username": user.get("username", user.get("email")),
-                "email": user.get("email", ""),
-                "name": user.get("name", ""),
-                "contact_count": len(contacts),
-                "contacts": contacts,
-                "created_at": user.get("created_at", ""),
-                "last_login": user.get("last_login", ""),
-                "is_admin": user.get("is_admin", False),
-            }
-        )
-
-    except Exception as e:
-        print(f"Error loading user details: {e}")
-        return jsonify({"error": "Failed to load user details"}), 500
 
 
 # ---------------- THREAT STATUS ----------------
@@ -1329,6 +1039,7 @@ def stop_monitoring():
 
 
 @app.route("/api/update_location", methods=["POST"])
+@limiter.limit("60 per minute")  # GPS updates at most once per second
 def update_location():
     """Update user location - requires authentication"""
     if "username" not in session:
@@ -1401,6 +1112,7 @@ def safe_places():
 
 
 @app.route("/api/trigger_sos", methods=["POST"])
+@limiter.limit("5 per minute")  # Prevent SOS notification flooding
 def trigger_sos():
     """Trigger SOS emergency - requires authentication"""
     if "username" not in session:
@@ -1537,6 +1249,7 @@ register_oauth_routes(app)
 
 
 @app.route("/api/motion_data", methods=["POST"])
+@limiter.limit("120 per minute")  # Sensor window ~2Hz max
 def motion_data():
     """Accept motion sensor data and return anomaly assessment."""
     if "username" not in session:
@@ -1609,6 +1322,7 @@ def motion_data():
 
 
 @app.route("/api/audio_data", methods=["POST"])
+@limiter.limit("60 per minute")  # Audio feature upload ~1Hz max
 def audio_data():
     """Accept audio features or raw audio and return distress assessment."""
     if "username" not in session:
@@ -1641,6 +1355,19 @@ def audio_data():
         with threat_lock:
             current_threat_score = assessment["fused_score"]
             current_threat_state = assessment["threat_level"]
+            latest_explanation = {
+                "summary": f"{assessment['threat_level']}: audio={result.get('distress_score', 0.0):.3f} event={result.get('event_type')}",
+                "signals": [
+                    {
+                        "name": "Audio",
+                        "score": result.get("distress_score", 0.0),
+                        "event": result.get("event_type"),
+                    }
+                ],
+                "recommendations": get_state_recommendations(
+                    assessment["threat_level"]
+                ),
+            }
 
         # Record incident if threat detected
         if assessment["alert_triggered"]:
@@ -1664,6 +1391,7 @@ def audio_data():
 
 
 @app.route("/api/motion_baseline", methods=["POST"])
+@limiter.limit("10 per minute")  # Baseline calibration is infrequent
 def motion_baseline():
     """Accept baseline motion data and create user motion profile."""
     if "username" not in session:

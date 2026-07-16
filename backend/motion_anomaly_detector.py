@@ -97,7 +97,7 @@ class MotionAnomalyDetector:
             class_probs = {self.le.classes_[i]: float(probs[i]) for i in range(len(self.le.classes_))}
             
             # Extract threat classifications
-            threat_labels = self.meta.get("threat_labels", ["grab", "push_pull", "fall", "struggle"])
+            threat_labels = self.meta.get("threat_labels", ["grab", "fall", "panic_run"])
             threat_classifications = {label: class_probs.get(label, 0.0) for label in threat_labels}
             
             return {
@@ -165,14 +165,12 @@ class MotionAnomalyDetector:
         normal_walk_prob = class_probs.get("normal_walk", 1.0)
         anomaly_score = 1.0 - normal_walk_prob
         
-        # Map predicted_label to upper case event types
-        # Map normal_walk -> NONE, fall -> FALL, struggle -> STRUGGLE, grab/push_pull -> GRABBED
+        # Map normal_walk -> NONE, grab -> GRAB, fall -> FALL, panic_run -> PANIC_RUN
         event_mapping = {
             "normal_walk": "NONE",
+            "grab": "GRAB",
             "fall": "FALL",
-            "struggle": "STRUGGLE",
-            "grab": "GRABBED",
-            "push_pull": "GRABBED"
+            "panic_run": "PANIC_RUN"
         }
         event_type = event_mapping.get(predicted_label, "NONE")
         

@@ -19,7 +19,7 @@ import { colors, radius, shadow, spacing } from "../theme";
 import { api } from "../api/client";
 import { useMotionSampler } from "../hooks/useMotionSampler";
 
-type LabelType = "normal_walk" | "grab" | "push_pull" | "fall" | "struggle";
+type LabelType = "normal_walk" | "grab" | "fall" | "panic_run";
 
 type LabelConfig = {
   id: LabelType;
@@ -37,39 +37,31 @@ const LABELS: LabelConfig[] = [
     title: "Normal Walk",
     color: "#4ade80",
     bgColor: "rgba(74, 222, 128, 0.1)",
-    description: "Walk at your normal speed and cadence.",
+    description: "Walk at your normal speed and cadence (Normal).",
   },
   {
     id: "grab",
-    emoji: "✊",
+    emoji: "🤚",
     title: "Grab",
-    color: "#fb923c",
-    bgColor: "rgba(251, 146, 60, 0.1)",
-    description: "Simulate a sudden grab or snatch of the phone.",
-  },
-  {
-    id: "push_pull",
-    emoji: "↕️",
-    title: "Push/Pull",
-    color: "#60a5fa",
-    bgColor: "rgba(96, 165, 250, 0.1)",
-    description: "Simulate a push or pull struggle action.",
+    color: "#f87171",
+    bgColor: "rgba(248, 113, 113, 0.1)",
+    description: "Simulate a sudden grabbing or pulling action.",
   },
   {
     id: "fall",
     emoji: "⚠️",
     title: "Fall",
-    color: "#f87171",
-    bgColor: "rgba(248, 113, 113, 0.1)",
-    description: "Perform a safe fall simulation (e.g., onto a bed).",
+    color: "#fb923c",
+    bgColor: "rgba(251, 146, 60, 0.1)",
+    description: "Simulate a sudden trip, fall, or collapse.",
   },
   {
-    id: "struggle",
-    emoji: "🔄",
-    title: "Struggle",
-    color: "#c084fc",
-    bgColor: "rgba(192, 132, 252, 0.1)",
-    description: "Simulate continuous body struggle/movement.",
+    id: "panic_run",
+    emoji: "🏃‍♀️",
+    title: "Panic Run",
+    color: "#60a5fa",
+    bgColor: "rgba(96, 165, 250, 0.1)",
+    description: "Simulate running away quickly in fear or panic.",
   },
 ];
 
@@ -84,9 +76,8 @@ export function DataCollectionScreen() {
   const [stats, setStats] = useState<Record<LabelType, number>>({
     normal_walk: 0,
     grab: 0,
-    push_pull: 0,
     fall: 0,
-    struggle: 0,
+    panic_run: 0,
   });
   const [loadingStats, setLoadingStats] = useState(true);
   const [recording, setRecording] = useState(false);
@@ -101,9 +92,8 @@ export function DataCollectionScreen() {
       const updatedStats: Record<LabelType, number> = {
         normal_walk: data.normal_walk || 0,
         grab: data.grab || 0,
-        push_pull: data.push_pull || 0,
         fall: data.fall || 0,
-        struggle: data.struggle || 0,
+        panic_run: data.panic_run || 0,
       };
       setStats(updatedStats);
     } catch (e) {
@@ -151,9 +141,8 @@ export function DataCollectionScreen() {
           const updatedStats: Record<LabelType, number> = {
             normal_walk: res.dataset_counts.normal_walk || 0,
             grab: res.dataset_counts.grab || 0,
-            push_pull: res.dataset_counts.push_pull || 0,
             fall: res.dataset_counts.fall || 0,
-            struggle: res.dataset_counts.struggle || 0,
+            panic_run: res.dataset_counts.panic_run || 0,
           };
           setStats(updatedStats);
         }
