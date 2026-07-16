@@ -5,7 +5,6 @@ import {
   Platform,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { LinearGradient } from "react-native-linear-gradient";
@@ -20,19 +19,13 @@ import { Button } from "../components/Button";
 import { colors, spacing, radius, shadow } from "../theme";
 import { getGoogleClientIds } from "../config";
 import { useAuth } from "../store/AuthContext";
-import { getStoredApiUrl, setStoredApiUrl } from "../api/client";
 
 export function LoginScreen() {
   const { signInWithGoogle } = useAuth();
-  const [apiUrl, setApiUrl] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const googleClientIds = getGoogleClientIds();
   const clientId = googleClientIds.clientId || googleClientIds.androidClientId;
-
-  useEffect(() => {
-    getStoredApiUrl().then(setApiUrl);
-  }, []);
 
   useEffect(() => {
     if (clientId) {
@@ -71,10 +64,6 @@ export function LoginScreen() {
     }
   };
 
-  const saveServer = async () => {
-    if (apiUrl.trim()) await setStoredApiUrl(apiUrl.trim());
-  };
-
   return (
     <Screen scroll>
       <KeyboardAvoidingView
@@ -111,24 +100,6 @@ export function LoginScreen() {
         </LinearGradient>
 
         <View style={styles.panel}>
-          <Text style={styles.sectionLabel}>Server URL</Text>
-          <TextInput
-            style={styles.input}
-            value={apiUrl}
-            onChangeText={(value) => {
-              setApiUrl(value);
-              if (error) setError("");
-            }}
-            onBlur={saveServer}
-            placeholder="http://10.0.2.2:5001"
-            placeholderTextColor={colors.textFaint}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          <Text style={styles.hint}>
-            Use your laptop LAN address on a physical phone.
-          </Text>
-
           {error ? (
             <View style={styles.errorBox}>
               <Ionicons
@@ -152,10 +123,7 @@ export function LoginScreen() {
           {clientId ? (
             <Button
               label="Continue with Google"
-              onPress={async () => {
-                await saveServer();
-                signIn();
-              }}
+              onPress={signIn}
               loading={loading}
               style={styles.googleButton}
             />
@@ -252,22 +220,6 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     ...shadow.card,
   },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.textSoft,
-    marginBottom: spacing.xs,
-  },
-  input: {
-    backgroundColor: colors.bg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: 14,
-    fontSize: 15,
-    color: colors.text,
-  },
-  hint: { fontSize: 12, color: colors.textMuted, marginTop: spacing.xs },
   errorBox: {
     flexDirection: "row",
     gap: 8,

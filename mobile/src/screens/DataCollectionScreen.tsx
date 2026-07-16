@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   recordingCountdown: {
     color: colors.rose,
     fontSize: 64,
-    fontWeight: "950",
+    fontWeight: "900",
   },
   recordingSubtitle: {
     color: colors.textSoft,

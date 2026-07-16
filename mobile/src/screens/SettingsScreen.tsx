@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import React from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Haptics } from "../components/Haptics";
@@ -9,25 +9,12 @@ import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { colors, radius, spacing } from "../theme";
-import { getStoredApiUrl, setStoredApiUrl } from "../api/client";
 import { useAuth } from "../store/AuthContext";
 
 export function SettingsScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user, signOut } = useAuth();
-  const [url, setUrl] = useState("");
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    getStoredApiUrl().then(setUrl);
-  }, []);
-
-  const save = async () => {
-    await setStoredApiUrl(url.trim());
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setSaved(true);
-  };
 
   const rows = [
     {
@@ -76,25 +63,6 @@ export function SettingsScreen() {
             </Text>
           </View>
         </View>
-      </Card>
-
-      <Card title="Server">
-        <Text style={styles.label}>AURALIS server URL</Text>
-        <TextInput
-          style={styles.input}
-          value={url}
-          onChangeText={(value) => {
-            setUrl(value);
-            setSaved(false);
-          }}
-          placeholder="http://10.0.2.2:5001"
-          placeholderTextColor={colors.textFaint}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        <Text style={styles.hint}>Point to the machine running Flask.</Text>
-        {saved ? <Text style={styles.saved}>Server URL saved.</Text> : null}
-        <Button label="Save server" onPress={save} />
       </Card>
 
       <View style={styles.menu}>
@@ -175,29 +143,6 @@ const styles = StyleSheet.create({
   profileCopy: { flex: 1 },
   name: { color: colors.text, fontSize: 17, fontWeight: "800" },
   email: { color: colors.textMuted, fontSize: 13, marginTop: 3 },
-  label: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.textSoft,
-    marginBottom: spacing.xs,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: 14,
-    fontSize: 15,
-    backgroundColor: colors.bg,
-    marginBottom: spacing.sm,
-    color: colors.text,
-  },
-  hint: { fontSize: 12, color: colors.textMuted, marginBottom: spacing.sm },
-  saved: {
-    color: colors.success,
-    marginBottom: spacing.sm,
-    fontSize: 12,
-    fontWeight: "700",
-  },
   menu: {
     backgroundColor: colors.card,
     borderWidth: 1,

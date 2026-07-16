@@ -1,24 +1,3 @@
-/**
- * client.ts
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Core API client with secure credential management.
- *
- * Security decisions:
- *   • JWT tokens     → Keychain (AES-256 encrypted, hardware-backed on
- *                       supported devices)
- *   • API URL        → Keychain (prevents preference poisoning via ADB
- *                       or backup restore on an insecure device)
- *   • No secrets     → AsyncStorage (AsyncStorage is plaintext SQLite)
- *
- * Token lifecycle:
- *   • Tokens are stored with an issue timestamp
- *   • Tokens older than TOKEN_TTL_MS are treated as expired
- *   • 401 responses trigger auto-signout (via exported onUnauthorized hook)
- *
- * clearAllSecureStorage() wipes ALL Keychain entries on signout —
- * call this instead of just resetting the token key.
- */
-
 import * as Keychain from "react-native-keychain";
 import { getApiUrl } from "../config";
 import { ApiError } from "./apiError";
@@ -51,35 +30,11 @@ export function registerUnauthorizedHandler(handler: () => void) {
 // ──────────────────────────────────────────────────────────────────────
 
 export async function getStoredApiUrl(): Promise<string> {
-  if (_apiUrlCache) return _apiUrlCache;
-
-  try {
-    const creds = await Keychain.getGenericPassword({ service: API_URL_SERVICE });
-    if (creds && creds.password) {
-      _apiUrlCache = creds.password;
-      return _apiUrlCache;
-    }
-  } catch (e) {
-    warn("SecureStorage", "Keychain URL read failed", e);
-  }
-
   return getApiUrl();
 }
 
 export async function setStoredApiUrl(url: string) {
-  const sanitized = url.replace(/\/$/, "").trim();
-  _apiUrlCache = sanitized;
-
-  try {
-    await Keychain.setGenericPassword("url", sanitized, {
-      service: API_URL_SERVICE,
-      // Do not require user authentication for the URL (just confidentiality)
-      accessible: Keychain.ACCESSIBLE.AFTER_FIRST_UNLOCK,
-    });
-  } catch (e) {
-    // On Keychain write failure, keep the in-memory cache so the session works
-    warn("SecureStorage", "Could not persist API URL to Keychain", e);
-  }
+  // Locked to built-in EXPO_PUBLIC_API_URL
 }
 
 // ──────────────────────────────────────────────────────────────────────
