@@ -106,6 +106,16 @@ android {
             crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
         }
     }
+
+    
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            if (variant.buildType.name == "release") {
+                outputFileName = "auralis.apk"
+            }
+        }
+    }
+
     packagingOptions {
         jniLibs {
             useLegacyPackaging false
